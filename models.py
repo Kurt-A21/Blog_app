@@ -12,6 +12,7 @@ class Users(Base):
     password = Column(String)
     bio = Column(String)
     avatar = Column(String, nullable=True)
+    account_id = Column(String, unique=True)
     user_type = Column(Enum(UserRole), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
 
