@@ -1,4 +1,13 @@
-from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, Enum, func
+from sqlalchemy import (
+    Column,
+    String,
+    Integer,
+    Boolean,
+    ForeignKey,
+    DateTime,
+    Enum,
+    func,
+)
 from database import Base
 from enums import UserRole, ReactionType
 
@@ -14,6 +23,7 @@ class Users(Base):
     avatar = Column(String, nullable=True)
     account_id = Column(String, unique=True)
     user_type = Column(Enum(UserRole), nullable=False)
+    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
 
 
