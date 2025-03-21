@@ -3,28 +3,33 @@ from sqlalchemy import (
     String,
     Integer,
     Boolean,
+    Text,
     ForeignKey,
     DateTime,
     Enum,
     func,
+    UUID
 )
 from database import Base
+import uuid
 from enums import UserRole, ReactionType
+from datetime import datetime, timezone
 
 
 class Users(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True)
-    email = Column(String, unique=True)
-    password = Column(String)
-    bio = Column(String)
-    avatar = Column(String, nullable=True)
-    account_id = Column(String, unique=True)
+    account_id = Column(UUID, default=uuid.uuid4, unique=True, nullable=False)
+    username = Column(String, unique=True, nullable=False)
+    email = Column(String, unique=True, nullable=False)
+    password = Column(String, nullable=False)
+    bio = Column(Text, nullable=True)
+    avatar = Column(String, nullable=True, defualt="avatar_banner.png")
     user_type = Column(Enum(UserRole), nullable=False)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime, server_default=datetime.now(timezone.utc))
+    last_login = Column(DateTime, nullable=True)
 
 
 class Posts(Base):
