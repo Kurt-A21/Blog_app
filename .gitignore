@@ -1,4 +1,7 @@
+*.db
+*.sqlite
 env
+blogapp.db
 requirements.txt
 $blogapp.drawio.bkp
 venv

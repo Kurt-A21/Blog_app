@@ -8,7 +8,7 @@ class UserCreate(BaseModel):
     username: str = Field(min_length=2)
     email: EmailStr
     password: str
-    bio: Optional[str] = Field(min_length=5, max_length=150, default=None)
+    bio: Optional[str] = Field(default=None)
     avatar: Optional[str] = Field(
         description="Image is not needed to create a account", default=None
     )
@@ -27,7 +27,7 @@ class UserUpdate(BaseModel):
         orm_mode = True
         
 class UserResponse(BaseModel):
-    int: int
+    id: int
     account_id: UUID4
     username: str
     email: EmailStr
