@@ -7,11 +7,12 @@ from enum import Enum
 class UserCreate(BaseModel):
     username: str = Field(min_length=2)
     email: EmailStr
-    password: str = Field(min_length=8)
+    password: str
     bio: Optional[str] = Field(min_length=5, max_length=150, default=None)
     avatar: Optional[str] = Field(
         description="Image is not needed to create a account", default=None
     )
+    user_type: UserRole = Field(default=UserRole.USER)
 
     class Config:
         orm_mode = True

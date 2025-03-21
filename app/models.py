@@ -13,7 +13,6 @@ from sqlalchemy import (
 from database import Base
 import uuid
 from enums import UserRole, ReactionType
-from datetime import datetime, timezone
 
 
 class Users(Base):
@@ -25,10 +24,10 @@ class Users(Base):
     email = Column(String, unique=True, nullable=False)
     password = Column(String, nullable=False)
     bio = Column(Text, nullable=True)
-    avatar = Column(String, nullable=True, defualt="avatar_banner.png")
-    user_type = Column(Enum(UserRole), nullable=False)
+    avatar = Column(String, nullable=True, default=None) #add image path
+    user_type = Column(Enum(UserRole), nullable=False, default=UserRole.USER)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, server_default=datetime.now(timezone.utc))
+    created_at = Column(DateTime, server_default=func.now())
     last_login = Column(DateTime, nullable=True)
 
 

@@ -2,3 +2,5 @@ env
 requirements.txt
 $blogapp.drawio.bkp
 venv
+app/__pycache__
+__pycache__
