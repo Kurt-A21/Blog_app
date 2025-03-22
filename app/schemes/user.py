@@ -1,8 +1,7 @@
-from pydantic import UUID4, BaseModel, Field, EmailStr
+from pydantic import UUID4, BaseModel, Field, EmailStr, field_validator
 from typing import Optional
-from datetime import datetime, timezone
+from datetime import datetime
 from enums import UserRole
-from enum import Enum
 
 class UserCreate(BaseModel):
     username: str = Field(min_length=2)
@@ -19,9 +18,14 @@ class UserCreate(BaseModel):
         
 class UserUpdate(BaseModel):
     username: Optional[str] = None
-    email: Optional[str] = None
+    email: Optional[EmailStr] = None
     bio: Optional[str] = None
     avatar: Optional[str] = None
+    
+    @field_validator("email", mode="before")
+    @classmethod
+    def empty_string_to_none(cls, value):
+        return None if value == "" else value
     
     class Config:
         orm_mode = True
