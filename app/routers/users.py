@@ -5,6 +5,7 @@ from models import Users
 from passlib.context import CryptContext
 from schemes import UserCreate, UserUpdate, UserResponse
 from typing import Optional
+from uuid import UUID
 
 router = APIRouter()
 
@@ -17,24 +18,10 @@ async def get_users(db: db_dependency):
         raise HTTPException(status_code=404, detail="No users found")
     return get_user_model
 
-# @router.get("/{user_id}", status_code=status.HTTP_200_OK)
-# async def get_a_user_by_id(db: db_dependency, user_id: int):
-#     get_user_model = db.query(Users).filter(Users.id == user_id).first()
-#     if get_user_model is None:
-#         raise HTTPException(status_code=404, detail="User not found")
-#     return get_user_model
-
-# @router.get("/{account_id}", status_code=status.HTTP_200_OK)
-# async def get_a_user_by_accountID(db: db_dependency, account_id: int):
-#     get_user_model = db.query(Users).filter(Users.account_id == account_id).first()
-#     if get_user_model is None:
-#         raise HTTPException(status_code=404, detail="User not found")
-#     return get_user_model
-
 @router.get("/get_user_by_id", status_code=status.HTTP_200_OK, response_model=UserResponse)
 async def get_user_by_id_or_accound_id(db: db_dependency,
                                         user_id: Optional[int] = Query(None),
-                                        account_id: Optional[str] = Query(None)
+                                        account_id: Optional[UUID] = Query(None)
                                     ):
     if not user_id and not account_id:
         raise HTTPException(status_code=400, detail="At least one ID (user_id or account_id) must be provided")
@@ -79,4 +66,35 @@ async def create_iser(create_user_request: UserCreate, db: db_dependency):
         )
     db.add(create_user_model)
     db.commit()
-    return {"message": "User createds"}
+    return {"message": "User created successfully"}
+
+@router.put("/updated_user/{account_id}", status_code=status.HTTP_202_ACCEPTED)
+async def updated_user(db: db_dependency, update_user_request: UserUpdate, account_id: UUID = Path):
+    check_user_exist = db.query(Users).filter(Users.account_id == account_id).first()
+    
+    if check_user_exist is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    updated_user_model = Users(
+        username = update_user_request.username,
+        email = update_user_request.email,
+        bio = update_user_request.bio,
+        avatar = update_user_request.avatar
+    )
+    db.add(updated_user_model)
+    db.commit()
+    return {"message": "User updated successfully"}
+
+@router.delete("/delete_user/{account_id}", status_code=status.HTTP_200_OK)
+async def delete_user(db: db_dependency, account_id: UUID = Path(min_length=1)):
+    delete_user_model = db.query(Users).filter(Users.account_id == account_id).first()
+    
+    if not delete_user_model:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    db.query(Users).filter(Users.account_id == account_id).delete()
+    db.commit()
+    return {"message": "User deleted successfully"}
+    
+
+        
