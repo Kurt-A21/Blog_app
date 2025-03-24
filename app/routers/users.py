@@ -11,7 +11,7 @@ from .auth import bcrypt_context
 router = APIRouter()
 
 
-@router.get("/", status_code=status.HTTP_200_OK)
+@router.get("", status_code=status.HTTP_200_OK)
 async def get_users(db: db_dependency):
     get_user_model = db.query(Users).all()
     if get_user_model is None:
