@@ -24,7 +24,9 @@ def get_user_details(user: user_dependency):
 async def get_users(db: db_dependency):
     get_user_model = db.query(Users).all()
     if not get_user_model:
-        raise HTTPException(status_code=404, detail="No users found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="No users found"
+        )
     return get_user_model
 
 
@@ -38,7 +40,7 @@ async def get_user_by_id_or_accound_id(
 ):
     if not user_id and not account_id:
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="At least one ID (user_id or account_id) must be provided",
         )
 
@@ -52,7 +54,9 @@ async def get_user_by_id_or_accound_id(
     user = user_query.first()
 
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
 
     user_response = UserResponse(
         id=user.id,
@@ -77,7 +81,9 @@ async def update_user(
     update_user_request: UserUpdate,
 ):
     if user is None:
-        raise HTTPException(status_code=401, detail="Authentication Failed")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
+        )
 
     user_id = get_user_details(user)
     user_details = db.query(Users).filter(Users.id == user_id).first()
@@ -99,13 +105,17 @@ async def update_user_email(
     user: user_dependency, db: db_dependency, update_email_request: UserEmailUpdate
 ):
     if user is None:
-        raise HTTPException(status_code=401, detail="Authentication Failed")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
+        )
 
     user_id = get_user_details(user)
     user_details = db.query(Users).filter(Users.id == user_id).first()
 
     if not user_details:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
 
     user_details.email = update_email_request.email
 
@@ -120,7 +130,9 @@ async def delete_user(
 ):
 
     if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
+        )
 
     users_id, user_role = get_user_details(user)
 

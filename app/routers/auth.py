@@ -87,7 +87,9 @@ async def login_for_access_token(
     validate_user = authenticate_user(form_data.username, form_data.password, db)
 
     if not validate_user:
-        raise HTTPException(status_code=401, detail="Failed Authentication")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Failed Authentication"
+        )
 
     token = create_access_token(
         validate_user.username, validate_user.id, timedelta(minutes=20)
