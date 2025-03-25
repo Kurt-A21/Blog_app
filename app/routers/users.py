@@ -1,20 +1,29 @@
-from fastapi import APIRouter, HTTPException, Path, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, Path
 from starlette import status
 from database import db_dependency
 from models import Users
-from passlib.context import CryptContext
-from schemes import UserCreate, UserUpdate, UserResponse
-from typing import Optional
+from schemes import UserUpdate, UserResponse, UserEmailUpdate
+from typing import Optional, Annotated
 from uuid import UUID
-from .auth import bcrypt_context
+from .auth import get_current_user
+from itertools import islice
+from app.constants import UserRole, ReactionType
 
 router = APIRouter()
+
+user_dependency = Annotated[dict, Depends(get_current_user)]
+
+
+def get_user_details(user: user_dependency):
+    new_data = dict(islice(user.items(), 1, None))
+    user_id, user_role = new_data.values()
+    return user_id, user_role
 
 
 @router.get("", status_code=status.HTTP_200_OK)
 async def get_users(db: db_dependency):
     get_user_model = db.query(Users).all()
-    if get_user_model is None:
+    if not get_user_model:
         raise HTTPException(status_code=404, detail="No users found")
     return get_user_model
 
@@ -61,49 +70,64 @@ async def get_user_by_id_or_accound_id(
     return user_response
 
 
-@router.post("/create_user", status_code=status.HTTP_201_CREATED)
-async def create_iser(create_user_request: UserCreate, db: db_dependency):
-    hashed_password = bcrypt_context.hash(create_user_request.password)
-
-    create_user_model = Users(
-        username=create_user_request.username,
-        email=create_user_request.email,
-        password=hashed_password,
-        bio=create_user_request.bio,
-        avatar=create_user_request.avatar,
-    )
-
-    db.add(create_user_model)
-    db.commit()
-    return {"message": "User created successfully"}
-
-
-@router.put("/update_user/{account_id}", status_code=status.HTTP_202_ACCEPTED)
+@router.put("/update_user", status_code=status.HTTP_200_OK)
 async def update_user(
-    db: db_dependency, update_user_request: UserUpdate, account_id: UUID
+    user: user_dependency,
+    db: db_dependency,
+    update_user_request: UserUpdate,
 ):
-    updated_user_model = db.query(Users).filter(Users.account_id == account_id).first()
+    if user is None:
+        raise HTTPException(status_code=401, detail="Authentication Failed")
 
-    if updated_user_model is None:
+    user_id = get_user_details(user)
+    user_details = db.query(Users).filter(Users.id == user_id).first()
+
+    if not user_details:
         raise HTTPException(status_code=404, detail="User not found")
 
-    updated_user_model.username = (update_user_request.username,)
-    updated_user_model.email = (update_user_request.email,)
-    updated_user_model.bio = (update_user_request.bio,)
-    updated_user_model.avatar = update_user_request.avatar
+    user_details.username = update_user_request.username
+    user_details.bio = update_user_request.bio
+    user_details.avatar = update_user_request.avatar
 
-    db.add(updated_user_model)
+    db.add(user_details)
     db.commit()
     return {"message": "User updated successfully"}
 
 
-@router.delete("/delete_user/{account_id}", status_code=status.HTTP_200_OK)
-async def delete_user(db: db_dependency, account_id: UUID):
-    delete_user_model = db.query(Users).filter(Users.account_id == account_id).first()
+@router.put("/update_email", status_code=status.HTTP_202_ACCEPTED)
+async def update_user_email(
+    user: user_dependency, db: db_dependency, update_email_request: UserEmailUpdate
+):
+    if user is None:
+        raise HTTPException(status_code=401, detail="Authentication Failed")
 
-    if not delete_user_model:
+    user_id = get_user_details(user)
+    user_details = db.query(Users).filter(Users.id == user_id).first()
+
+    if not user_details:
         raise HTTPException(status_code=404, detail="User not found")
 
-    db.query(Users).filter(Users.account_id == account_id).delete()
+    user_details.email = update_email_request.email
+
+    db.add(user_details)
     db.commit()
-    return {"message": "User deleted successfully"}
+    return {"message": "User email updated successfully"}
+
+
+@router.delete("/delete_user/{user_id}", status_code=status.HTTP_200_OK)
+async def delete_user(
+    user: user_dependency, db: db_dependency, user_id: int = Path(ge=0)
+):
+
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    users_id, user_role = get_user_details(user)
+
+    try:
+        if user_role == UserRole.ADMIN.value or users_id:
+            db.query(Users).filter(Users.id == user_id or Users.id == users_id).delete()
+            db.commit()
+            return {"message": "User deleted successfully"}
+    except Exception as e:
+        return {"message": e}

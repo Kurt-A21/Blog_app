@@ -8,11 +8,11 @@ from sqlalchemy import (
     DateTime,
     Enum,
     func,
-    UUID
+    UUID,
 )
 from database import Base
 import uuid
-from enums import UserRole, ReactionType
+from app.constants import UserRole, ReactionType
 
 
 class Users(Base):
@@ -21,11 +21,11 @@ class Users(Base):
     id = Column(Integer, primary_key=True, index=True)
     account_id = Column(UUID, default=uuid.uuid4, unique=True, nullable=False)
     username = Column(String, unique=True, nullable=False)
-    email = Column(String, unique=True, nullable=False)
+    email = Column(String, index=True, unique=True, nullable=False)
     password = Column(String, nullable=False)
     bio = Column(Text, nullable=True)
-    avatar = Column(String, nullable=True, default=None) #add image path
-    user_type = Column(Enum(UserRole), nullable=False, default=UserRole.USER)
+    avatar = Column(String, nullable=True, default=None)  # add image path
+    user_type = Column(Enum(UserRole), default=UserRole.USER, nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
     last_login = Column(DateTime, nullable=True)

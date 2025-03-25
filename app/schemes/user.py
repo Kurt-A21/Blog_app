@@ -1,7 +1,7 @@
 from pydantic import UUID4, BaseModel, Field, EmailStr, field_validator, ConfigDict
 from typing import Optional
 from datetime import datetime
-from enums import UserRole
+from app.constants import UserRole
 
 
 class UserCreate(BaseModel):
@@ -19,14 +19,14 @@ class UserCreate(BaseModel):
 
 class UserUpdate(BaseModel):
     username: Optional[str] = None
-    email: Optional[EmailStr] = None
     bio: Optional[str] = None
     avatar: Optional[str] = None
 
-    @field_validator("email", mode="before")
-    @classmethod
-    def empty_string_to_none(cls, value):
-        return None if value == "" else value
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserEmailUpdate(BaseModel):
+    email: Optional[EmailStr] = None
 
     model_config = ConfigDict(from_attributes=True)
 
