@@ -6,13 +6,13 @@ from sqlalchemy import (
     Text,
     ForeignKey,
     DateTime,
-    Enum,
+    Enum as SQLAEnum,
     func,
     UUID,
 )
 from database import Base
 import uuid
-from app.constants import UserRole, ReactionType
+from constants import UserRole, ReactionType
 
 
 class Users(Base):
@@ -25,17 +25,17 @@ class Users(Base):
     password = Column(String, nullable=False)
     bio = Column(Text, nullable=True)
     avatar = Column(String, nullable=True, default=None)  # add image path
-    user_type = Column(Enum(UserRole), default=UserRole.USER, nullable=False)
     is_active = Column(Boolean, default=True)
+    role = Column(SQLAEnum(UserRole), default=UserRole.USER, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
-    last_login = Column(DateTime, nullable=True)
+    last_login = Column(DateTime, server_default=func.now(), nullable=True)
 
 
 class Posts(Base):
     __tablename__ = "posts"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
+    owner_id = Column(Integer, ForeignKey("users.id"))
     content = Column(String)
     image_url = Column(String, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
@@ -47,7 +47,7 @@ class Reactions(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     post_id = Column(Integer, ForeignKey("posts.id"))
-    reaction_type = Column(Enum(ReactionType), nullable=False)
+    reaction_type = Column(SQLAEnum(ReactionType), nullable=False)
     created_id = Column(DateTime, server_default=func.now())
 
 

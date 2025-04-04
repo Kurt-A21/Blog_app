@@ -9,6 +9,7 @@ from typing import Annotated
 from jose import jwt, JWTError
 from schemes.auth import TokenResponse
 from schemes.user import UserCreate
+from enum import Enum
 
 # import os
 # from dotenv import load_dotenv
@@ -32,29 +33,28 @@ def authenticate_user(username: str, password: str, db):
     return user
 
 
-def create_access_token(username: str, user_id: int, expires_delta: timedelta):
-    encode = {"sub": username, "id": user_id}
+def create_access_token(
+    username: str, user_id: int, role: Enum, expires_delta: timedelta
+):
+    encode = {"sub": username, "id": user_id, "role": role}
     expires = datetime.now(timezone.utc) + expires_delta
     encode.update({"exp": expires})
 
     return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-async def get_current_user(
-    db: db_dependency, token: Annotated[str, Depends(oauth2_bearer)]
-):
+async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         user_id: int = payload.get("id")
+        user_role: Enum = payload.get("role")
         if username is None or user_id is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Could not valdate user credentials",
             )
-
-        user = db.query(Users).filter(Users.id == user_id).first()
-        return {"username": username, "id": user_id, "user_role": user.user_type}
+        return {"username": username, "id": user_id, "user_role": user_role}
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -72,11 +72,12 @@ async def create_user(create_user_request: UserCreate, db: db_dependency):
         password=hashed_password,
         bio=create_user_request.bio,
         avatar=create_user_request.avatar,
+        role=create_user_request.user_role,
     )
 
     db.add(create_user_model)
     db.commit()
-    return {"message": "User created successfully"}
+    return {"detail": "User created successfully"}
 
 
 @router.post("/token", status_code=status.HTTP_200_OK, response_model=TokenResponse)
@@ -92,7 +93,10 @@ async def login_for_access_token(
         )
 
     token = create_access_token(
-        validate_user.username, validate_user.id, timedelta(minutes=20)
+        validate_user.username,
+        validate_user.id,
+        validate_user.role,
+        timedelta(minutes=20),
     )
 
     return TokenResponse(access_token=token, token_type="bearer")
