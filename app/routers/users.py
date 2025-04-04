@@ -6,7 +6,6 @@ from schemes import UserUpdate, UserResponse, UserEmailUpdate
 from typing import Optional, Annotated
 from uuid import UUID
 from .auth import get_current_user
-from constants import UserRole, ReactionType
 
 router = APIRouter()
 
