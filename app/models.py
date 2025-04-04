@@ -1,27 +1,41 @@
-from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, Enum, func
+from sqlalchemy import (
+    Column,
+    String,
+    Integer,
+    Boolean,
+    Text,
+    ForeignKey,
+    DateTime,
+    Enum as SQLAEnum,
+    func,
+    UUID,
+)
 from database import Base
-from enums import UserRole, ReactionType
+import uuid
+from constants import UserRole, ReactionType
 
 
 class Users(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True)
-    email = Column(String, unique=True)
-    password = Column(String)
-    bio = Column(String)
-    avatar = Column(String, nullable=True)
-    account_id = Column(String, unique=True)
-    user_type = Column(Enum(UserRole), nullable=False)
+    account_id = Column(UUID, default=uuid.uuid4, unique=True, nullable=False)
+    username = Column(String, unique=True, nullable=False)
+    email = Column(String, index=True, unique=True, nullable=False)
+    password = Column(String, nullable=False)
+    bio = Column(Text, nullable=True)
+    avatar = Column(String, nullable=True, default=None)  # add image path
+    is_active = Column(Boolean, default=True)
+    role = Column(SQLAEnum(UserRole), default=UserRole.USER, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
+    last_login = Column(DateTime, server_default=func.now(), nullable=True)
 
 
 class Posts(Base):
     __tablename__ = "posts"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
+    owner_id = Column(Integer, ForeignKey("users.id"))
     content = Column(String)
     image_url = Column(String, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
@@ -33,7 +47,7 @@ class Reactions(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     post_id = Column(Integer, ForeignKey("posts.id"))
-    reaction_type = Column(Enum(ReactionType), nullable=False)
+    reaction_type = Column(SQLAEnum(ReactionType), nullable=False)
     created_id = Column(DateTime, server_default=func.now())
 
 

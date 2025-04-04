@@ -1,0 +1,11 @@
+*.db
+*.sqlite
+env
+blogapp.db
+requirements.txt
+$blogapp.drawio.bkp
+venv
+app/__pycache__
+__pycache__
+path.env
+app/path.env
