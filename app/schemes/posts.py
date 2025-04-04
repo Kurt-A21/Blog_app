@@ -21,6 +21,7 @@ class PostUpdate(BaseModel):
 
 
 class PostResponse(BaseModel):
+    detail: str = ("Post created successfully",)
     owner_username = str = Field(min_length=0)
     content: str = Field(min_length=0, max_length=280)
     image_url: Optional[str] = Field(
