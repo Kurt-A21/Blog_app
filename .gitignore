@@ -2,7 +2,6 @@
 *.sqlite
 env
 blogapp.db
-requirements.txt
 $blogapp.drawio.bkp
 venv
 app/__pycache__
