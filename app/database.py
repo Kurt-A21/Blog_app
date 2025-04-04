@@ -4,8 +4,14 @@ from sqlalchemy.ext.declarative import declarative_base
 from typing import Annotated
 from sqlalchemy.orm import Session
 from fastapi import Depends
+import os
+from dotenv import load_dotenv
+from pathlib import Path
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///./blogapp.db"
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env")
+
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}

@@ -10,15 +10,18 @@ from jose import jwt, JWTError
 from schemes.auth import TokenResponse
 from schemes.user import UserCreate
 from enum import Enum
-
-# import os
-# from dotenv import load_dotenv
-# from uuid import UUID
+import os
+from dotenv import load_dotenv
+from uuid import UUID
+from pathlib import Path
 
 router = APIRouter()
 
-SECRET_KEY = "9bac69e01d5a681e023c8cdd8fe513898fcfe5697f8a913100b57a85151e203"
-ALGORITHM = "HS256"
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env")
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM")
 
 bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_bearer = OAuth2PasswordBearer(tokenUrl="/auth/token")
