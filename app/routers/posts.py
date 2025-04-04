@@ -8,7 +8,30 @@ from schemes import PostCreate, PostResponse
 router = APIRouter()
 
 
-@router.post("/create", status_code=status.HTTP_201_CREATED)
+@router.get("", status_code=status.HTTP_200_OK, response_model=PostResponse)
+async def get_user_posts(user: user_dependency, db: db_dependency):
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication failed"
+        )
+
+    get_posts_model = db.query(Posts).filter(Posts.owner_id == user.get("id")).all()
+
+    if not get_posts_model:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Posts not found"
+        )
+
+    return PostResponse(
+        owner_username=user.get("username"),
+        content=get_posts_model.content,
+        image_url=get_posts_model.image_url,
+    )
+
+
+@router.post(
+    "/create", status_code=status.HTTP_201_CREATED, response_model=PostResponse
+)
 async def create_post(
     user: user_dependency, db: db_dependency, post_request: PostCreate
 ):
@@ -22,8 +45,10 @@ async def create_post(
     db.add(post_model)
     db.commit()
 
-    return PostResponse(
+    post_response = PostResponse(
         owner_username=user.get("username"),
         content=post_model.content,
         image_url=post_model.image_url,
     )
+
+    return {"detail": "Post created successfully", "post_details": post_response}

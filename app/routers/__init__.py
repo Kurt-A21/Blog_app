@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from .posts import routes as posts_router
+from .posts import router as posts_router
 from .users import router as users_router
 from .auth import router as auth_router
 from .admin import router as admin_router
