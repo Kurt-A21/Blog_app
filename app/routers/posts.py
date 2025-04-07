@@ -3,7 +3,7 @@ from starlette import status
 from database import db_dependency
 from .users import user_dependency
 from models import Posts
-from schemes import PostCreate, CreatePostResponse, PostResponse
+from schemes import PostCreate, CreatePostResponse, PostResponse, PostUpdate
 from typing import List
 
 router = APIRouter()
@@ -58,3 +58,30 @@ async def create_post(
             image_url=post_model.image_url,
         ),
     }
+    
+@router.put("/update_post/{posts_id}", status_code=status.HTTP_200_OK)
+async def update_post(user: user_dependency, db: db_dependency, post_request: PostUpdate, posts_id: int = Path(gt=0)):
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication failed"
+        )
+        
+    post = db.query(Posts).filter(Posts.owner_id == user.get("id")).first()
+    
+    if post is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authorized to update this post")
+    
+    update_posts_model = db.query(Posts).filter(Posts.id == posts_id).first()
+    
+    if not update_posts_model:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post to update not found")
+    
+    update_posts_model.content = post_request.content
+    update_posts_model.image_url = post_request.image_url
+    
+    db.add(update_posts_model)
+    db.commit()
+    
+    return {"detail": "Post updated successfully"}
+    
+    
