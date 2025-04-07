@@ -91,5 +91,22 @@ async def update_post(user: user_dependency, db: db_dependency, post_request: Po
     db.commit()
     
     return {"detail": "Post updated successfully"}
+
+@router.delete("/delete/{post_id}", status_code=status.HTTP_200_OK)
+async def delete_post(user: user_dependency, db: db_dependency, post_id: int = Path(gt=0)):
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication failed"
+        )
+        
+    query_post = db.query(Posts).filter(Posts.id == post_id).first()
+    
+    if query_post is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+    
+    db.query(Posts).filter(Posts.id == post_id).delete()
+    db.commit() 
+    
+    return {"detail": "Post deleted successully"}
     
     
