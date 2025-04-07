@@ -2,7 +2,6 @@ from datetime import datetime
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 
-
 class PostCreate(BaseModel):
     content: str = Field(min_length=0, max_length=280)
     image_url: Optional[str] = Field(

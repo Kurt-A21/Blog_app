@@ -3,13 +3,21 @@ from starlette import status
 from database import db_dependency
 from .users import user_dependency
 from models import Posts
-from schemes import PostCreate, CreatePostResponse, PostResponse, PostUpdate
+from schemes import PostCreate, CreatePostResponse, PostResponse, PostUpdate, GetPosts
 from typing import List
 
 router = APIRouter()
 
+@router.get("", status_code=status.HTTP_200_OK)
+async def get_all_posts(db: db_dependency):
+    get_posts_model = db.query(Posts).all()
+    
+    if get_posts_model is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Posts not found")
+    
+    return get_posts_model
 
-@router.get("", status_code=status.HTTP_200_OK, response_model=List[PostResponse])
+@router.get("/user_posts", status_code=status.HTTP_200_OK, response_model=List[PostResponse])
 async def get_user_posts(user: user_dependency, db: db_dependency):
     if user is None:
         raise HTTPException(
