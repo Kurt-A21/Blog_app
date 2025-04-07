@@ -11,16 +11,6 @@ router = APIRouter()
 user_dependency = Annotated[dict, Depends(get_current_user)]
 
 
-@router.get("/", status_code=status.HTTP_200_OK)
-async def get_users(db: db_dependency):
-    get_user_model = db.query(Users).all()
-    if not get_user_model:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="No users found"
-        )
-    return get_user_model
-
-
 @router.put("/update_user", status_code=status.HTTP_200_OK)
 async def update_user(
     user: user_dependency,

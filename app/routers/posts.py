@@ -3,7 +3,7 @@ from starlette import status
 from database import db_dependency
 from .users import user_dependency
 from models import Posts
-from schemes import PostCreate, CreatePostResponse, PostResponse, PostUpdate, GetPosts
+from schemes import PostCreate, CreatePostResponse, PostResponse, PostUpdate
 from typing import List
 
 router = APIRouter()
@@ -12,7 +12,7 @@ router = APIRouter()
 async def get_all_posts(db: db_dependency):
     get_posts_model = db.query(Posts).all()
     
-    if get_posts_model is None:
+    if not get_posts_model:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Posts not found")
     
     return get_posts_model
@@ -33,7 +33,7 @@ async def get_user_posts(user: user_dependency, db: db_dependency):
 
     return [
         PostResponse(
-            owner_username=user.get("username"),
+            created_by=user.get("username"),
             content=post.content,
             image_url=post.image_url,
             created_at=post.created_at
@@ -53,7 +53,7 @@ async def create_post(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication failed"
         )
 
-    post_model = Posts(**post_request.model_dump(), owner_id=user.get("id"))
+    post_model = Posts(**post_request.model_dump(), created_by=user.get("username"), owner_id=user.get("id"))
 
     db.add(post_model)
     db.commit()
@@ -61,10 +61,11 @@ async def create_post(
     return {
         "detail": "Post created successfully",
         "post_details": PostResponse(
-            owner_username=user.get("username"),
+            created_by=user.get("username"),
             content=post_model.content,
             image_url=post_model.image_url,
-        ),
+            created_at=post_model.created_at,
+        )
     }
     
 @router.put("/update_post/{posts_id}", status_code=status.HTTP_200_OK)

@@ -21,7 +21,7 @@ class PostUpdate(BaseModel):
 
 
 class PostResponse(BaseModel):
-    owner_username: str = Field(min_length=0)
+    created_by: str = Field(min_length=0)
     content: str = Field(min_length=0, max_length=280)
     image_url: Optional[str] = Field(
         description="Image is not needed to create a account", default=None
