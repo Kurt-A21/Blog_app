@@ -26,8 +26,9 @@ async def get_user_posts(user: user_dependency, db: db_dependency):
     return [
         PostResponse(
             owner_username=user.get("username"),
-            content=get_posts_model.content,
-            image_url=get_posts_model.image_url,
+            content=post.content,
+            image_url=post.image_url,
+            created_at=post.created_at
         )
         for post in get_posts_model
     ]

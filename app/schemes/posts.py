@@ -1,3 +1,4 @@
+from datetime import datetime
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 
@@ -26,8 +27,13 @@ class PostResponse(BaseModel):
     image_url: Optional[str] = Field(
         description="Image is not needed to create a account", default=None
     )
+    created_at: datetime
 
+    model_config = ConfigDict(from_attributes=True)
+    
 class CreatePostResponse(BaseModel):
     detail: str
     post_details: PostResponse
+    
+    model_config = ConfigDict(from_attributes=True)
 
