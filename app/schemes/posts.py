@@ -26,3 +26,8 @@ class PostResponse(BaseModel):
     image_url: Optional[str] = Field(
         description="Image is not needed to create a account", default=None
     )
+
+class CreatePostResponse(BaseModel):
+    detail: str
+    post_details: PostResponse
+

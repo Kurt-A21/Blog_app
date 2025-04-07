@@ -3,12 +3,13 @@ from starlette import status
 from database import db_dependency
 from .users import user_dependency
 from models import Posts
-from schemes import PostCreate, PostResponse
+from schemes import PostCreate, CreatePostResponse, PostResponse
+from typing import List
 
 router = APIRouter()
 
 
-@router.get("", status_code=status.HTTP_200_OK, response_model=PostResponse)
+@router.get("", status_code=status.HTTP_200_OK, response_model=List[PostResponse])
 async def get_user_posts(user: user_dependency, db: db_dependency):
     if user is None:
         raise HTTPException(
@@ -22,15 +23,18 @@ async def get_user_posts(user: user_dependency, db: db_dependency):
             status_code=status.HTTP_404_NOT_FOUND, detail="Posts not found"
         )
 
-    return PostResponse(
-        owner_username=user.get("username"),
-        content=get_posts_model.content,
-        image_url=get_posts_model.image_url,
-    )
+    return [
+        PostResponse(
+            owner_username=user.get("username"),
+            content=get_posts_model.content,
+            image_url=get_posts_model.image_url,
+        )
+        for post in get_posts_model
+    ]
 
 
 @router.post(
-    "/create", status_code=status.HTTP_201_CREATED, response_model=PostResponse
+    "/create", status_code=status.HTTP_201_CREATED, response_model=CreatePostResponse
 )
 async def create_post(
     user: user_dependency, db: db_dependency, post_request: PostCreate
@@ -40,15 +44,16 @@ async def create_post(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication failed"
         )
 
-    post_model = Posts(**post_request.model_dump(), id=user.get("id"))
+    post_model = Posts(**post_request.model_dump(), owner_id=user.get("id"))
 
     db.add(post_model)
     db.commit()
 
-    post_response = PostResponse(
-        owner_username=user.get("username"),
-        content=post_model.content,
-        image_url=post_model.image_url,
-    )
-
-    return {"detail": "Post created successfully", "post_details": post_response}
+    return {
+        "detail": "Post created successfully",
+        "post_details": PostResponse(
+            owner_username=user.get("username"),
+            content=post_model.content,
+            image_url=post_model.image_url,
+        ),
+    }
