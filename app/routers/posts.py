@@ -5,17 +5,28 @@ from .users import user_dependency
 from models import Posts
 from schemes import PostCreate, CreatePostResponse, PostResponse, PostUpdate
 from typing import List
+from sqlalchemy.orm import joinedload
 
 router = APIRouter()
 
-@router.get("", status_code=status.HTTP_200_OK)
+@router.get("", status_code=status.HTTP_200_OK, response_model=List[PostResponse])
 async def get_all_posts(db: db_dependency):
-    get_posts_model = db.query(Posts).all()
+    get_posts_model = db.query(Posts).options(joinedload(Posts.comments)).all()
     
     if not get_posts_model:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Posts not found")
     
-    return get_posts_model
+    return [
+        PostResponse(
+            created_by = post.created_by,
+            content = post.content,
+            image_url = post.image_url,
+            created_at = post.created_at,
+            comments = post.comments
+        )
+        
+        for post in get_posts_model
+    ]
 
 @router.get("/user_posts", status_code=status.HTTP_200_OK, response_model=List[PostResponse])
 async def get_user_posts(user: user_dependency, db: db_dependency):
