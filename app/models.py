@@ -10,6 +10,7 @@ from sqlalchemy import (
     func,
     UUID,
 )
+from sqlalchemy.orm import relationship
 from database import Base
 import uuid
 from constants import UserRole, ReactionType
@@ -40,7 +41,8 @@ class Posts(Base):
     content = Column(String, nullable=False)
     image_url = Column(String, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
-
+    comments = relationship("Comments", back_populates="post")
+    
 
 class Reactions(Base):
     __tablename__ = "reactions"
@@ -58,9 +60,9 @@ class Comments(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     post_id = Column(Integer, ForeignKey("posts.id"))
-    parent_id = Column(Integer, ForeignKey("comments.id"))
     content = Column(String)
     created_at = Column(DateTime, server_default=func.now())
+    post = relationship("Posts", back_populates='comments')
 
 
 class Follows(Base):
