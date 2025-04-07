@@ -6,7 +6,7 @@ class UserRole(str, Enum):
     USER = "user"
 
 
-class ReactionType(Enum):
+class ReactionType(str, Enum):
     LIKE = "like"
     LOVE = "love"
     HAHA = "haha"

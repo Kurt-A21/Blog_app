@@ -36,7 +36,8 @@ class Posts(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     owner_id = Column(Integer, ForeignKey("users.id"))
-    content = Column(String)
+    created_by = Column(String, unique=True)
+    content = Column(String, nullable=False)
     image_url = Column(String, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 

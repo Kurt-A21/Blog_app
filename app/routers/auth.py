@@ -12,7 +12,6 @@ from schemes.user import UserCreate
 from enum import Enum
 import os
 from dotenv import load_dotenv
-from uuid import UUID
 from pathlib import Path
 
 router = APIRouter()
