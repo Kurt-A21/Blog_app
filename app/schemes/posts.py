@@ -1,6 +1,8 @@
 from datetime import datetime
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
+from .comments import GetComments
+
 
 class PostCreate(BaseModel):
     content: str = Field(min_length=0, max_length=280)
@@ -21,18 +23,20 @@ class PostUpdate(BaseModel):
 
 
 class PostResponse(BaseModel):
+    id: int
     created_by: str = Field(min_length=0)
     content: str = Field(min_length=0, max_length=280)
     image_url: Optional[str] = Field(
         description="Image is not needed to create a account", default=None
     )
     created_at: datetime
+    comments: list[GetComments] = [] 
 
     model_config = ConfigDict(from_attributes=True)
-    
+
+
 class CreatePostResponse(BaseModel):
     detail: str
     post_details: PostResponse
-    
-    model_config = ConfigDict(from_attributes=True)
 
+    model_config = ConfigDict(from_attributes=True)

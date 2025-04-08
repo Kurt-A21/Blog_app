@@ -2,11 +2,13 @@ from fastapi import APIRouter, HTTPException, Path, Query
 from starlette import status
 from database import db_dependency
 from .users import user_dependency
-from models import Users, Posts
+from models import Users, Posts, Comments
 from constants import UserRole
 from schemes import UserResponse
 from typing import Optional
 from uuid import UUID
+from sqlalchemy.orm import joinedload
+
 
 router = APIRouter()
 
@@ -107,4 +109,32 @@ async def delete_post(user: user_dependency, db: db_dependency, post_id: int = P
     db.commit()
     
     return {"detail": "Post deleted successfully"}
+
+@router.delete("/{post_id}/comment/{comment_id}", status_code=status.HTTP_200_OK)
+async def delete_comment(
+                        user: user_dependency, 
+                        db: db_dependency, 
+                        post_id: int = Path(gt=0), 
+                        comment_id: int = Path(gt=0)
+                        ):
+    if user is None or user.get("user_role") != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
+        )
+        
+    query_post_model = (
+        db.query(Posts)
+        .options(joinedload(Posts.comments))
+        .filter(Posts.id == post_id)
+        .first()
+    )
+
+    for comment in query_post_model.comments:
+        if comment.id == comment_id:
+            db.query(Comments).filter(Comments.id == comment_id).delete()
+            db.commit()
+            return {"detail": "Comment deleted succcessfully"}
+        else:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found")
+    
     
