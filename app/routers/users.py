@@ -10,6 +10,17 @@ router = APIRouter()
 
 user_dependency = Annotated[dict, Depends(get_current_user)]
 
+@router.get("", status_code=status.HTTP_200_OK)
+async def get_current_user_details(user: user_dependency, db: db_dependency):
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
+        )
+        
+    get_user_model = db.query(Users).filter(Users.id == user.get("id")).first()
+    
+    return get_user_model
+
 
 @router.put("/update_user", status_code=status.HTTP_200_OK)
 async def update_user(
@@ -37,7 +48,7 @@ async def update_user(
     return {"detail": "User updated successfully"}
 
 
-@router.put("/update_email", status_code=status.HTTP_202_ACCEPTED)
+@router.put("/update_email", status_code=status.HTTP_200_OK)
 async def update_user_email(
     user: user_dependency, db: db_dependency, update_email_request: UserEmailUpdate
 ):
