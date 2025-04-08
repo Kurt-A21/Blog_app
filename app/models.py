@@ -30,7 +30,7 @@ class Users(Base):
     role = Column(SQLAEnum(UserRole), default=UserRole.USER, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
     last_login = Column(DateTime, server_default=func.now(), nullable=True)
-    comments = relationship("Comments", back_populates="users")
+    comments = relationship("Comments", back_populates="user")
 
 
 class Posts(Base):

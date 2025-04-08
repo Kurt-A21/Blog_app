@@ -31,12 +31,20 @@ async def get_all_posts(db: db_dependency):
 
     return [
         PostResponse(
-            post_id=post.id,
+            id=post.id,
             created_by=post.created_by,
             content=post.content,
             image_url=post.image_url,
             created_at=post.created_at,
-            comments=GetComments,
+            comments=[
+                GetComments(
+                    id=comment.id,
+                    created_by=comment.user.username,
+                    content=comment.content,
+                    created_at=comment.created_at
+                )
+                for comment in post.comments
+            ]
         )
         for post in get_posts_model
     ]

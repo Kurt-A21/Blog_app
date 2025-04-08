@@ -30,7 +30,7 @@ class PostResponse(BaseModel):
         description="Image is not needed to create a account", default=None
     )
     created_at: datetime
-    comments: list[GetComments] = []
+    comments: list[GetComments] = [] 
 
     model_config = ConfigDict(from_attributes=True)
 
