@@ -64,14 +64,13 @@ async def update_comment(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
         )
 
-    
     query_post_model = db.query(Posts).filter(Posts.id == post_id).first()
 
     if query_post_model is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
         )
-
+            
     post = db.query(Posts).filter(Posts.owner_id == user.get("id")).first()
 
     if post is None:
