@@ -1,7 +1,7 @@
 from sqlalchemy import (
     Column,
     String,
-    Integer,
+    Integer, 
     Boolean,
     Text,
     ForeignKey,
@@ -41,8 +41,11 @@ class Posts(Base):
     created_by = Column(String)
     content = Column(String, nullable=False)
     image_url = Column(String, nullable=True)
+    reactions = Column(ReactionType, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
+
     comments = relationship("Comments", back_populates="post")
+    post = relationship("Reactions", back_populates="post")
 
 
 class Reactions(Base):
@@ -52,7 +55,9 @@ class Reactions(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     post_id = Column(Integer, ForeignKey("posts.id"))
     reaction_type = Column(SQLAEnum(ReactionType), nullable=False)
-    created_id = Column(DateTime, server_default=func.now())
+
+    post = relationship("Posts", back_populates="post")
+    comments = relationship("Comments", back_populates="comments")
 
 
 class Comments(Base):
@@ -63,9 +68,10 @@ class Comments(Base):
     post_id = Column(Integer, ForeignKey("posts.id"))
     content = Column(String)
     created_at = Column(DateTime, server_default=func.now())
+
     post = relationship("Posts", back_populates="comments")
     user = relationship("Users", back_populates="comments")
-
+    comments = relationship("Reactions", back_populates="comments")
 
 
 class Follows(Base):
