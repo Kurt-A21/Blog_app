@@ -3,7 +3,7 @@ from constants import ReactionType
 
 
 class Reaction(BaseModel):
-    reaction_type: ReactionType = Field(nullable=False)
+    reaction_type: ReactionType
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -12,10 +12,15 @@ class Reaction(BaseModel):
         },
     )
 
-
 class ReactionResponse(BaseModel):
     detail: str
     post_content: str
-    reaction_type: ReactionType = Field(nullable=False)
+    reaction_type: ReactionType
 
+    model_config = ConfigDict(from_attributes=True)
+    
+class ReactionListResponse(BaseModel):
+    owner: str
+    reaction_type: ReactionType
+    
     model_config = ConfigDict(from_attributes=True)

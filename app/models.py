@@ -1,7 +1,7 @@
 from sqlalchemy import (
     Column,
     String,
-    Integer, 
+    Integer,
     Boolean,
     Text,
     ForeignKey,
@@ -30,7 +30,10 @@ class Users(Base):
     role = Column(SQLAEnum(UserRole), default=UserRole.USER, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
     last_login = Column(DateTime, server_default=func.now(), nullable=True)
+
+    posts = relationship("Posts", back_populates="user")
     comments = relationship("Comments", back_populates="user")
+    reactions = relationship("Reactions", back_populates="user")
 
 
 class Posts(Base):
@@ -41,37 +44,40 @@ class Posts(Base):
     created_by = Column(String)
     content = Column(String, nullable=False)
     image_url = Column(String, nullable=True)
-    reactions = Column(ReactionType, nullable=False)
+    reactions = Column(SQLAEnum(ReactionType), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
 
+    user = relationship("Users", back_populates="posts")
     comments = relationship("Comments", back_populates="post")
-    post = relationship("Reactions", back_populates="post")
-
-
-class Reactions(Base):
-    __tablename__ = "reactions"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    post_id = Column(Integer, ForeignKey("posts.id"))
-    reaction_type = Column(SQLAEnum(ReactionType), nullable=False)
-
-    post = relationship("Posts", back_populates="post")
-    comments = relationship("Comments", back_populates="comments")
+    reactions = relationship("Reactions", back_populates="post")
 
 
 class Comments(Base):
     __tablename__ = "comments"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
+    owner_id = Column(Integer, ForeignKey("users.id"))
     post_id = Column(Integer, ForeignKey("posts.id"))
     content = Column(String)
     created_at = Column(DateTime, server_default=func.now())
 
-    post = relationship("Posts", back_populates="comments")
     user = relationship("Users", back_populates="comments")
-    comments = relationship("Reactions", back_populates="comments")
+    post = relationship("Posts", back_populates="comments")
+    reactions = relationship("Reactions", back_populates="comments")
+
+
+class Reactions(Base):
+    __tablename__ = "reactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    post_id = Column(Integer, ForeignKey("posts.id"), nullable=True)
+    comment_id = Column(Integer, ForeignKey("comments.id"), nullable=True)
+    reaction_type = Column(SQLAEnum(ReactionType), nullable=False)
+
+    user = relationship("Users", back_populates="reactions")
+    post = relationship("Posts", back_populates="reactions")
+    comments = relationship("Comments", back_populates="reactions")
 
 
 class Follows(Base):

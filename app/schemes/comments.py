@@ -28,6 +28,7 @@ class CommentUpdate(BaseModel):
 class CommentResponse(BaseModel):
     detail: str
     post_content: str
+    comment_id: int
     content: str = Field(min_lengsth=0, max_length=280)
     created_at: datetime
 

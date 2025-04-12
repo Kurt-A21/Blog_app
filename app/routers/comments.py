@@ -33,7 +33,7 @@ async def create_comment(
         )
 
     comment_model = Comments(
-        **comment_request.model_dump(), user_id=user.get("id"), post_id=post_id
+        **comment_request.model_dump(), owner_id=user.get("id"), post_id=post_id
     )
 
     db.add(comment_model)
@@ -41,6 +41,7 @@ async def create_comment(
 
     return CommentResponse(
         detail="Comment added successully",
+        comment_id=query_model.owner_id,
         post_content=query_model.content,
         content=comment_model.content,
         created_at=comment_model.created_at,
@@ -70,7 +71,7 @@ async def update_comment(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
         )
-            
+
     post = db.query(Posts).filter(Posts.owner_id == user.get("id")).first()
 
     if post is None:
@@ -96,14 +97,20 @@ async def update_comment(
         content=updated_comment_model.content,
         created_at=updated_comment_model.created_at,
     )
-    
+
+
 @router.delete("/{post_id}/comment/{comment_id}", status_code=status.HTTP_200_OK)
-async def delete_comment(user: user_dependency, db: db_dependency, post_id: int = Path(gt=0), comment_id: int = Path(gt=0)):
+async def delete_comment(
+    user: user_dependency,
+    db: db_dependency,
+    post_id: int = Path(gt=0),
+    comment_id: int = Path(gt=0),
+):
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
         )
-        
+
     query_post_model = (
         db.query(Posts)
         .options(joinedload(Posts.comments))
@@ -117,6 +124,6 @@ async def delete_comment(user: user_dependency, db: db_dependency, post_id: int 
             db.commit()
             return {"detail": "Comment deleted succcessfully"}
         else:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found")
-    
-    
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
+            )

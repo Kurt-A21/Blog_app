@@ -2,6 +2,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 from .comments import GetComments
+from .reactions import ReactionListResponse
 
 
 class PostCreate(BaseModel):
@@ -30,7 +31,10 @@ class PostResponse(BaseModel):
         description="Image is not needed to create a account", default=None
     )
     created_at: datetime
-    comments: list[GetComments] = [] 
+    reaction_count: int
+    reactions: list[ReactionListResponse] = []
+    comment_count: int
+    comments: list[GetComments] = []
 
     model_config = ConfigDict(from_attributes=True)
 
