@@ -30,7 +30,10 @@ class Users(Base):
     role = Column(SQLAEnum(UserRole), default=UserRole.USER, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
     last_login = Column(DateTime, server_default=func.now(), nullable=True)
+
+    posts = relationship("Posts", back_populates="user")
     comments = relationship("Comments", back_populates="user")
+    reactions = relationship("Reactions", back_populates="user")
 
 
 class Posts(Base):
@@ -38,34 +41,42 @@ class Posts(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     owner_id = Column(Integer, ForeignKey("users.id"))
-    created_by = Column(String)
+    created_by = Column(String, nullable=False)
     content = Column(String, nullable=False)
     image_url = Column(String, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
+
+    user = relationship("Users", back_populates="posts")
     comments = relationship("Comments", back_populates="post")
-
-
-class Reactions(Base):
-    __tablename__ = "reactions"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    post_id = Column(Integer, ForeignKey("posts.id"))
-    reaction_type = Column(SQLAEnum(ReactionType), nullable=False)
-    created_id = Column(DateTime, server_default=func.now())
+    reactions = relationship("Reactions", back_populates="post")
 
 
 class Comments(Base):
     __tablename__ = "comments"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    post_id = Column(Integer, ForeignKey("posts.id"))
-    content = Column(String)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    post_id = Column(Integer, ForeignKey("posts.id"), nullable=False)
+    content = Column(String, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
-    post = relationship("Posts", back_populates="comments")
-    user = relationship("Users", back_populates="comments")
 
+    user = relationship("Users", back_populates="comments")
+    post = relationship("Posts", back_populates="comments")
+    reactions = relationship("Reactions", back_populates="comments")
+
+
+class Reactions(Base):
+    __tablename__ = "reactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    post_id = Column(Integer, ForeignKey("posts.id"))
+    comment_id = Column(Integer, ForeignKey("comments.id"))
+    reaction_type = Column(SQLAEnum(ReactionType), nullable=False)
+
+    user = relationship("Users", back_populates="reactions")
+    post = relationship("Posts", back_populates="reactions")
+    comments = relationship("Comments", back_populates="reactions")
 
 
 class Follows(Base):

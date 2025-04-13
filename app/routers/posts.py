@@ -8,7 +8,9 @@ from schemes import (
     CreatePostResponse,
     PostResponse,
     PostUpdate,
+    ReactionListResponse,
     GetComments,
+    GetReactions,
 )
 from typing import List
 from sqlalchemy.orm import joinedload
@@ -36,15 +38,35 @@ async def get_all_posts(db: db_dependency):
             content=post.content,
             image_url=post.image_url,
             created_at=post.created_at,
+            reaction_count=len(post.reactions),
+            reactions=[
+                ReactionListResponse(
+                    id=reaction.id,
+                    owner=reaction.user.username,
+                    reaction_type=reaction.reaction_type,
+                    reaction_count=len(post.reactions),
+                )
+                for reaction in post.reactions
+            ],
+            comment_count=len(post.comments),
             comments=[
                 GetComments(
                     id=comment.id,
                     created_by=comment.user.username,
                     content=comment.content,
-                    created_at=comment.created_at
+                    created_at=comment.created_at,
+                    reaction_count=len(post.reactions),
+                    reactions=[
+                        GetReactions(
+                            id=reaction.id,
+                            owner=reaction.user.username,
+                            reaction_type=reaction.reaction_type,
+                        )
+                        for reaction in comment.reactions
+                    ],
                 )
                 for comment in post.comments
-            ]
+            ],
         )
         for post in get_posts_model
     ]
@@ -100,15 +122,17 @@ async def create_post(
     return {
         "detail": "Post created successfully",
         "post_details": PostResponse(
+            id=user.get("id"),
             created_by=user.get("username"),
             content=post_model.content,
             image_url=post_model.image_url,
             created_at=post_model.created_at,
+            comments=[],
         ),
     }
 
 
-@router.put("/update_post/{posts_id}", status_code=status.HTTP_200_OK)
+@router.put("/{posts_id}/update_post", status_code=status.HTTP_200_OK)
 async def update_post(
     user: user_dependency,
     db: db_dependency,
