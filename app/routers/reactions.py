@@ -2,9 +2,9 @@ from fastapi import APIRouter, HTTPException, Path
 from starlette import status
 from database import db_dependency
 from .users import user_dependency
-from models import Posts, Reactions
+from models import Posts, Reactions, Comments
 from schemes import Reaction, ReactionResponse
-from sqlalchemy.orm import joinedload
+from typing import Optional
 
 router = APIRouter()
 
@@ -115,11 +115,15 @@ async def update_post_reaction(
     )
 
 
-@router.delete("/{post_id}/reactions/{reaction_id}", status_code=status.HTTP_200_OK)
+@router.delete(
+    "/{post_id}/comments/{comment_id}/reactions/{reaction_id}",
+    status_code=status.HTTP_200_OK,
+)
 async def undo_reaction(
     user: user_dependency,
     db: db_dependency,
     post_id: int = Path(gt=0),
+    comment_id: Optional[int] = Path(gt=0),
     reaction_id: int = Path(gt=0),
 ):
     if not user:
@@ -133,6 +137,15 @@ async def undo_reaction(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
         )
+
+    if comment_id is not None:
+        query_comment_model = (
+            db.query(Comments).filter(Comments.id == comment_id).first()
+        )
+        if query_comment_model is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
+            )
 
     delete_reaction_model = (
         db.query(Reactions).filter(Reactions.id == reaction_id).first()
@@ -149,13 +162,13 @@ async def undo_reaction(
         .first()
     )
 
-    if check_reaction_owner is None:
+    if check_reaction_owner.owner_id != user.get("id"):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to undo this reaction",
         )
 
-    db.query(Reactions).filter(Reactions.id == reaction_id).delete()
+    db.add(check_reaction_owner)
     db.commit()
 
     return {"detail": "Reaction deleted successfully"}
