@@ -32,13 +32,13 @@ async def add_reaction_to_post(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
         )
 
-    query_reaction_model = (
-        db.query(Posts)
-        .options(joinedload(Posts.reactions).joinedload(Reactions.user))
-        .all()
+    existing_reaction = (
+        db.query(Reactions)
+        .filter(Reactions.post_id == post_id, Reactions.owner_id == user.get("id"))
+        .first()
     )
 
-    if query_reaction_model is not None:
+    if existing_reaction is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User already reacted to post",
@@ -63,7 +63,7 @@ async def add_reaction_to_post(
     status_code=status.HTTP_200_OK,
     response_model=ReactionResponse,
 )
-async def update_reaction(
+async def update_post_reaction(
     user: user_dependency,
     db: db_dependency,
     update_reaction_request: Reaction,
@@ -82,20 +82,6 @@ async def update_reaction(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
         )
 
-    check_reaction_owner = (
-        db.query(Reactions).filter(Reactions.owner_id == user.get("id")).first()
-    )
-
-    if check_reaction_owner:
-        print("Is reaction owner")
-        print(user.get("id"))
-
-    if check_reaction_owner is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authorized to update this reaction",
-        )
-
     update_reaction_model = (
         db.query(Reactions).filter(Reactions.id == reaction_id).first()
     )
@@ -103,6 +89,18 @@ async def update_reaction(
     if not update_reaction_model:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Reaction to update not found"
+        )
+
+    check_reaction_owner = (
+        db.query(Reactions)
+        .filter(Reactions.id == reaction_id, Reactions.owner_id == user.get("id"))
+        .first()
+    )
+
+    if check_reaction_owner is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authorized to update this reaction",
         )
 
     update_reaction_model.reaction_type = update_reaction_request.reaction_type
@@ -115,3 +113,49 @@ async def update_reaction(
         post_content=query_post_model.content,
         reaction_type=update_reaction_model.reaction_type,
     )
+
+
+@router.delete("/{post_id}/reactions/{reaction_id}", status_code=status.HTTP_200_OK)
+async def undo_reaction(
+    user: user_dependency,
+    db: db_dependency,
+    post_id: int = Path(gt=0),
+    reaction_id: int = Path(gt=0),
+):
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
+        )
+
+    query_post_model = db.query(Posts).filter(Posts.id == post_id).first()
+
+    if query_post_model is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
+        )
+
+    delete_reaction_model = (
+        db.query(Reactions).filter(Reactions.id == reaction_id).first()
+    )
+
+    if not delete_reaction_model:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Reaction to undo not found"
+        )
+
+    check_reaction_owner = (
+        db.query(Reactions)
+        .filter(Reactions.id == reaction_id, Reactions.owner_id == user.get("id"))
+        .first()
+    )
+
+    if check_reaction_owner is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authorized to undo this reaction",
+        )
+
+    db.query(Reactions).filter(Reactions.id == reaction_id).delete()
+    db.commit()
+
+    return {"detail": "Reaction deleted successfully"}
