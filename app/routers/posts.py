@@ -40,6 +40,7 @@ async def get_all_posts(db: db_dependency):
             reaction_count=len(post.reactions),
             reactions=[
                 ReactionListResponse(
+                    id=reaction.id,
                     owner=reaction.user.username,
                     reaction_type=reaction.reaction_type,
                 )
@@ -120,7 +121,7 @@ async def create_post(
     }
 
 
-@router.put("/update_post/{posts_id}", status_code=status.HTTP_200_OK)
+@router.put("/{posts_id}/update_post", status_code=status.HTTP_200_OK)
 async def update_post(
     user: user_dependency,
     db: db_dependency,

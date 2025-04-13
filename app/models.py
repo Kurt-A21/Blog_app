@@ -41,10 +41,9 @@ class Posts(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     owner_id = Column(Integer, ForeignKey("users.id"))
-    created_by = Column(String)
+    created_by = Column(String, nullable=False)
     content = Column(String, nullable=False)
     image_url = Column(String, nullable=True)
-    reactions = Column(SQLAEnum(ReactionType), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
 
     user = relationship("Users", back_populates="posts")
@@ -56,9 +55,9 @@ class Comments(Base):
     __tablename__ = "comments"
 
     id = Column(Integer, primary_key=True, index=True)
-    owner_id = Column(Integer, ForeignKey("users.id"))
-    post_id = Column(Integer, ForeignKey("posts.id"))
-    content = Column(String)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    post_id = Column(Integer, ForeignKey("posts.id"), nullable=False)
+    content = Column(String, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
 
     user = relationship("Users", back_populates="comments")
@@ -71,8 +70,8 @@ class Reactions(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    post_id = Column(Integer, ForeignKey("posts.id"), nullable=True)
-    comment_id = Column(Integer, ForeignKey("comments.id"), nullable=True)
+    post_id = Column(Integer, ForeignKey("posts.id"))
+    comment_id = Column(Integer, ForeignKey("comments.id"))
     reaction_type = Column(SQLAEnum(ReactionType), nullable=False)
 
     user = relationship("Users", back_populates="reactions")

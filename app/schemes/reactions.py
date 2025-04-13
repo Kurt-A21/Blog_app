@@ -12,15 +12,18 @@ class Reaction(BaseModel):
         },
     )
 
+
 class ReactionResponse(BaseModel):
     detail: str
     post_content: str
     reaction_type: ReactionType
 
     model_config = ConfigDict(from_attributes=True)
-    
+
+
 class ReactionListResponse(BaseModel):
+    id: int
     owner: str
     reaction_type: ReactionType
-    
+
     model_config = ConfigDict(from_attributes=True)

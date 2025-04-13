@@ -31,10 +31,10 @@ class PostResponse(BaseModel):
         description="Image is not needed to create a account", default=None
     )
     created_at: datetime
-    reaction_count: int
-    reactions: list[ReactionListResponse] = []
-    comment_count: int
-    comments: list[GetComments] = []
+    reaction_count: Optional[int] = None
+    reactions: Optional[list[ReactionListResponse]] = []
+    comment_count: Optional[int] = None
+    comments: Optional[list[GetComments]] = []
 
     model_config = ConfigDict(from_attributes=True)
 
