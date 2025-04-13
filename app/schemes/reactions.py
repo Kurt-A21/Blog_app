@@ -1,5 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field
 from constants import ReactionType
+from typing import Optional
 
 
 class Reaction(BaseModel):
@@ -24,6 +25,7 @@ class GetReactions(BaseModel):
 class ReactionResponse(BaseModel):
     detail: str
     post_content: str
+    comment_content: Optional[str]
     reaction_type: ReactionType
 
     model_config = ConfigDict(from_attributes=True)
