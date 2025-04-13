@@ -58,6 +58,71 @@ async def add_reaction_to_post(
     )
 
 
+@router.post(
+    "/{post_id}/comments/{comment_id}/reactions",
+    status_code=status.HTTP_201_CREATED,
+    response_model=ReactionResponse,
+)
+async def add_reaction_to_comment(
+    user: user_dependency,
+    db: db_dependency,
+    reaction_request: Reaction,
+    post_id: int = Path(gt=0),
+    comment_id: int = Path(gt=0),
+):
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
+        )
+
+    query_post_model = db.query(Posts).filter(Posts.id == post_id).first()
+
+    if query_post_model is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
+        )
+
+    query_comment_model = db.query(Comments).filter(Comments.id == comment_id).first()
+
+    if query_comment_model is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
+        )
+
+    existing_reaction = (
+        db.query(Reactions)
+        .filter(
+            Reactions.comment_id == comment_id, Reactions.owner_id == user.get("id")
+        )
+        .first()
+    )
+
+    if existing_reaction is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User already reacted to comment",
+        )
+
+    if query_comment_model.post_id != post_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Comment does not belong to the given post",
+        )
+
+    reaction_model = Reactions(
+        **reaction_request.model_dump(), owner_id=user.get("id"), comment_id=comment_id
+    )
+
+    db.add(reaction_model)
+    db.commit()
+
+    return ReactionResponse(
+        detail="Reaction added to comment",
+        post_content=query_post_model.content,
+        reaction_type=reaction_model.reaction_type,
+    )
+
+
 @router.put(
     "/{post_id}/reactions/{reaction_id}",
     status_code=status.HTTP_200_OK,
@@ -99,7 +164,7 @@ async def update_post_reaction(
 
     if check_reaction_owner is None:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Not authorized to update this reaction",
         )
 
@@ -157,9 +222,7 @@ async def undo_reaction(
         )
 
     check_reaction_owner = (
-        db.query(Reactions)
-        .filter(Reactions.id == reaction_id, Reactions.owner_id == user.get("id"))
-        .first()
+        db.query(Reactions).filter(Reactions.id == reaction_id).first()
     )
 
     if check_reaction_owner.owner_id != user.get("id"):

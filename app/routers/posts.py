@@ -10,6 +10,7 @@ from schemes import (
     PostUpdate,
     ReactionListResponse,
     GetComments,
+    GetReactions,
 )
 from typing import List
 from sqlalchemy.orm import joinedload
@@ -43,6 +44,7 @@ async def get_all_posts(db: db_dependency):
                     id=reaction.id,
                     owner=reaction.user.username,
                     reaction_type=reaction.reaction_type,
+                    reaction_count=len(post.reactions),
                 )
                 for reaction in post.reactions
             ],
@@ -53,6 +55,15 @@ async def get_all_posts(db: db_dependency):
                     created_by=comment.user.username,
                     content=comment.content,
                     created_at=comment.created_at,
+                    reaction_count=len(post.reactions),
+                    reactions=[
+                        GetReactions(
+                            id=reaction.id,
+                            owner=reaction.user.username,
+                            reaction_type=reaction.reaction_type,
+                        )
+                        for reaction in comment.reactions
+                    ],
                 )
                 for comment in post.comments
             ],
