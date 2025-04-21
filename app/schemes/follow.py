@@ -2,7 +2,7 @@ from pydantic import BaseModel, ConfigDict
 
 
 class GetFollower(BaseModel):
-    id: int
+    user_id: int
     username: str
 
     model_config = ConfigDict(from_attributes=True)
