@@ -1,7 +1,8 @@
 from pydantic import UUID4, BaseModel, Field, EmailStr, ConfigDict
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 from constants import UserRole
+from .follow import GetFollower
 
 
 class UserCreate(BaseModel):
@@ -14,19 +15,7 @@ class UserCreate(BaseModel):
     )
     user_role: UserRole = Field(default=UserRole.USER, nullable=False)
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        # json_schema_extra={
-        #     "example": {
-        #         "username": "JohnDoe",
-        #         "email": "john@email.com",
-        #         "password": "test123",
-        #         "bio": "This is my bio",
-        #         "avatar": "Image.png",
-        #         "user_role": "user or admin",
-        #     }
-        # },
-    )
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserUpdate(BaseModel):
@@ -39,6 +28,18 @@ class UserUpdate(BaseModel):
 
 class UserEmailUpdate(BaseModel):
     email: Optional[EmailStr] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class GetUserResponse(BaseModel):
+    id: int
+    username: str
+    bio: Optional[str] = None
+    avatar: Optional[str] = None
+    followers: Optional[int] = None
+    following: Optional[int] = None
+    is_active: bool
 
     model_config = ConfigDict(from_attributes=True)
 

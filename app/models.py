@@ -9,6 +9,7 @@ from sqlalchemy import (
     Enum as SQLAEnum,
     func,
     UUID,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 from database import Base
@@ -34,6 +35,8 @@ class Users(Base):
     posts = relationship("Posts", back_populates="user")
     comments = relationship("Comments", back_populates="user")
     reactions = relationship("Reactions", back_populates="user")
+    followers = relationship("Follows", foreign_keys="[Follows.user_id]")
+    following = relationship("Follows", foreign_keys="[Follows.follower_id]")
 
 
 class Posts(Base):
@@ -83,6 +86,12 @@ class Follows(Base):
     __tablename__ = "follows"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
     follower_id = Column(Integer, ForeignKey("users.id"))
     following_id = Column(Integer, ForeignKey("users.id"))
-    created_at = Column(DateTime, server_default=func.now())
+
+    user = relationship("Users", foreign_keys=[user_id], back_populates="followers")
+    follower_user = relationship("Users", foreign_keys=[follower_id])
+    followed_user = relationship("Users", foreign_keys=[user_id])
+
+    __table_args__ = (UniqueConstraint("user_id", "follower_id", name="unique_follow"),)
