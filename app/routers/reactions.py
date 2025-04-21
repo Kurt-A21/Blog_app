@@ -336,18 +336,6 @@ async def undo_comment_reaction(
             detail="Comment does not belong to the given post",
         )
 
-    check_reaction_owner = (
-        db.query(Reactions)
-        .filter(Reactions.id == reaction_id, Reactions.owner_id == user.get("id"))
-        .first()
-    )
-
-    if check_reaction_owner is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to update this reaction",
-        )
-
     delete_reaction_model = (
         db.query(Reactions).filter(Reactions.id == reaction_id).first()
     )
