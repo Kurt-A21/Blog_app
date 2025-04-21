@@ -3,9 +3,66 @@ from starlette import status
 from database import db_dependency
 from .users import user_dependency
 from models import Users, Follows
-from schemes import FollowUser
+from schemes import FollowUser, GetFollower
+from sqlalchemy.orm import joinedload
+from typing import List
 
 router = APIRouter()
+
+
+@router.get(
+    "followers", status_code=status.HTTP_200_OK, response_model=List[GetFollower]
+)
+async def get_followers(user: user_dependency, db: db_dependency):
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
+        )
+
+    get_followers_model = (
+        db.query(Users)
+        .join(Follows, Follows.follower_id == Users.id)
+        .filter(Follows.user_id == user.get("id"))
+        .all()
+    )
+
+    if not get_followers_model:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="No followers found"
+        )
+
+    return [
+        GetFollower(id=follower.id, username=follower.username)
+        for follower in get_followers_model
+    ]
+
+
+@router.get(
+    "/following", status_code=status.HTTP_200_OK, response_model=List[GetFollower]
+)
+async def get_following(user: user_dependency, db: db_dependency):
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
+        )
+
+    get_following_model = (
+        db.query(Users)
+        .join(Follows, Follows.user_id == Users.id)
+        .filter(Follows.follower_id == user.get("id"))
+        .all()
+    )
+
+    if not get_following_model:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="You are not following any users yet",
+        )
+
+    return [
+        GetFollower(id=following.id, username=following.username)
+        for following in get_following_model
+    ]
 
 
 @router.post(
