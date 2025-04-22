@@ -101,9 +101,6 @@ async def update_user(
 
     user_details = db.query(Users).filter(Users.id == user.get("id")).first()
 
-    if not user_details:
-        raise HTTPException(status_code=404, detail="User not found")
-
     user_details.username = update_user_request.username
     user_details.bio = update_user_request.bio
     user_details.avatar = update_user_request.avatar
@@ -123,11 +120,6 @@ async def update_user_email(
         )
 
     user_details = db.query(Users).filter(Users.id == user.get("id")).first()
-
-    if not user_details:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-        )
 
     user_details.email = update_email_request.email
 

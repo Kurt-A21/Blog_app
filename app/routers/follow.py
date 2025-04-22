@@ -9,17 +9,16 @@ from typing import List
 router = APIRouter()
 
 
-@router.get("/follow", status_code=status.HTTP_200_OK, response_model=List[GetFollower])
-async def get_followers(user: user_dependency, db: db_dependency):
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
-
+@router.get(
+    "{user_id}/followers",
+    status_code=status.HTTP_200_OK,
+    response_model=List[GetFollower],
+)
+async def get_followers(db: db_dependency, user_id: int = Path(gt=0)):
     get_followers_model = (
         db.query(Users)
         .join(Follows, Follows.follower_id == Users.id)
-        .filter(Follows.user_id == user.get("id"))
+        .filter(Follows.user_id == user_id)
         .all()
     )
 
@@ -34,24 +33,23 @@ async def get_followers(user: user_dependency, db: db_dependency):
     ]
 
 
-@router.get("/follow", status_code=status.HTTP_200_OK, response_model=List[GetFollower])
-async def get_following(user: user_dependency, db: db_dependency):
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
-
+@router.get(
+    "/{user_id}/following",
+    status_code=status.HTTP_200_OK,
+    response_model=List[GetFollower],
+)
+async def get_following(db: db_dependency, user_id: int = Path(gt=0)):
     get_following_model = (
         db.query(Users)
         .join(Follows, Follows.user_id == Users.id)
-        .filter(Follows.follower_id == user.get("id"))
+        .filter(Follows.follower_id == user_id)
         .all()
     )
 
     if not get_following_model:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="You are not following any users yet",
+            detail="Not following any users yet",
         )
 
     return [

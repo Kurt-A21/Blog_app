@@ -7,8 +7,7 @@ from models import Users
 from passlib.context import CryptContext
 from typing import Annotated
 from jose import jwt, JWTError
-from schemes.auth import TokenResponse
-from schemes.user import UserCreate
+from schemes import TokenResponse, UserCreate, UserVerification
 from enum import Enum
 import os
 from dotenv import load_dotenv
@@ -80,6 +79,24 @@ async def create_user(create_user_request: UserCreate, db: db_dependency):
     db.add(create_user_model)
     db.commit()
     return {"detail": "User created successfully"}
+
+
+@router.put("/forget_password", status_code=status.HTTP_200_OK)
+async def forget_password(db: db_dependency, verify_user: UserVerification):
+
+    user_model = db.query(Users).filter(Users.id == user.get("id")).first()
+
+    if not bcrypt_context.verify(verify_user.password, user_model.password):
+        return HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect password"
+        )
+
+    user_model.password = bcrypt_context.hash(verify_user.new_password)
+
+    db.add(user_model)
+    db.commit()
+
+    return {"detail": "Password updated successfully"}
 
 
 @router.post("/token", status_code=status.HTTP_200_OK, response_model=TokenResponse)
