@@ -80,8 +80,10 @@ async def get_user_by_id_or_accound_id(
     return user_response
 
 
-@router.delete("/delete_user/{user_id}", status_code=status.HTTP_200_OK)
-async def read_all(user: user_dependency, db: db_dependency, user_id: int = Path(gt=0)):
+@router.delete("/user/{user_id}/delete_user", status_code=status.HTTP_200_OK)
+async def delete_user(
+    user: user_dependency, db: db_dependency, user_id: int = Path(gt=0)
+):
     if user is None or user.get("user_role") != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
@@ -99,7 +101,7 @@ async def read_all(user: user_dependency, db: db_dependency, user_id: int = Path
     return {"detail": "User deleted successfully"}
 
 
-@router.delete("/delete_post/{post_id}", status_code=status.HTTP_200_OK)
+@router.delete("/post/{post_id}/delete_post", status_code=status.HTTP_200_OK)
 async def delete_post(
     user: user_dependency, db: db_dependency, post_id: int = Path(gt=0)
 ):
@@ -121,7 +123,7 @@ async def delete_post(
     return {"detail": "Post deleted successfully"}
 
 
-@router.delete("/{post_id}/comment/{comment_id}", status_code=status.HTTP_200_OK)
+@router.delete("/post/{post_id}/comment/{comment_id}", status_code=status.HTTP_200_OK)
 async def delete_comment(
     user: user_dependency,
     db: db_dependency,
