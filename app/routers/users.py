@@ -2,13 +2,9 @@ from fastapi import APIRouter, HTTPException, Depends
 from starlette import status
 from database import db_dependency
 from models import Users, Follows
-from schemes import (
-    UserUpdate,
-    UserEmailUpdate,
-    GetUserResponse,
-)
+from schemes import UserUpdate, UserEmailUpdate, GetUserResponse, UserVerification
 from typing import Annotated, List
-from .auth import get_current_user
+from .auth import get_current_user, bcrypt_context
 from sqlalchemy.orm import joinedload
 
 router = APIRouter()
@@ -66,6 +62,30 @@ async def get_current_user_details(user: user_dependency, db: db_dependency):
     get_user_model = db.query(Users).filter(Users.id == user.get("id")).first()
 
     return get_user_model
+
+
+@router.put("/change_password", status_code=status.HTTP_200_OK)
+async def change_password(
+    user: user_dependency, db: db_dependency, verify_user: UserVerification
+):
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
+        )
+
+    user_model = db.query(Users).filter(Users.id == user.get("id")).first()
+
+    if not bcrypt_context.verify(verify_user.password, user_model.password):
+        return HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect password"
+        )
+
+    user_model.password = bcrypt_context.hash(verify_user.new_password)
+
+    db.add(user_model)
+    db.commit()
+
+    return {"detail": "Password updated successfully"}
 
 
 @router.put("/update_user", status_code=status.HTTP_200_OK)

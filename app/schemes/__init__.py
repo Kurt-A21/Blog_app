@@ -1,4 +1,11 @@
-from .user import UserCreate, UserUpdate, UserResponse, UserEmailUpdate, GetUserResponse
+from .user import (
+    UserCreate,
+    UserUpdate,
+    UserResponse,
+    UserEmailUpdate,
+    GetUserResponse,
+    UserVerification,
+)
 from .auth import TokenResponse
 from .posts import PostCreate, PostUpdate, PostResponse, CreatePostResponse
 from .comments import CommentCreate, CommentResponse, CommentUpdate, GetComments

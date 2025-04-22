@@ -8,7 +8,7 @@ from .follow import GetFollower
 class UserCreate(BaseModel):
     username: str = Field(min_length=2)
     email: EmailStr
-    password: str
+    password: str = Field(min_length=8, max_length=64)
     bio: Optional[str] = Field(default=None)
     avatar: Optional[str] = Field(
         description="Image is not needed to create a account", default=None
@@ -30,6 +30,11 @@ class UserEmailUpdate(BaseModel):
     email: Optional[EmailStr] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class UserVerification(BaseModel):
+    password: str
+    new_password: str = Field(min_length=8, max_length=64)
 
 
 class GetUserResponse(BaseModel):

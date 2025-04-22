@@ -3,7 +3,7 @@ from database import engine
 import models
 from routers import router
 
-app = FastAPI()
+app = FastAPI(title="Social Media App")
 
 models.Base.metadata.create_all(bind=engine)
 
