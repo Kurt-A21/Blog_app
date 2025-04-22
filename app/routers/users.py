@@ -6,7 +6,6 @@ from schemes import (
     UserUpdate,
     UserEmailUpdate,
     GetUserResponse,
-    GetFollower,
 )
 from typing import Annotated, List
 from .auth import get_current_user
@@ -80,8 +79,7 @@ async def update_user(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
         )
 
-    user_id = user.get("id")
-    user_details = db.query(Users).filter(Users.id == user_id).first()
+    user_details = db.query(Users).filter(Users.id == user.get("id")).first()
 
     if not user_details:
         raise HTTPException(status_code=404, detail="User not found")
@@ -104,8 +102,7 @@ async def update_user_email(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
         )
 
-    user_id = user.get("id")
-    user_details = db.query(Users).filter(Users.id == user_id).first()
+    user_details = db.query(Users).filter(Users.id == user.get("id")).first()
 
     if not user_details:
         raise HTTPException(
@@ -121,15 +118,12 @@ async def update_user_email(
 
 @router.delete("/delete_user", status_code=status.HTTP_200_OK)
 async def delete_user(user: user_dependency, db: db_dependency):
-
     if user is None:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
         )
 
-    user_id = user.get("id")
-
-    db.query(Users).filter(Users.id == user_id).delete()
+    db.query(Users).filter(Users.id == user.get("id")).delete()
     db.commit()
 
     return {"detail": "User deleted successfully"}

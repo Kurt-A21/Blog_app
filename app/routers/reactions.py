@@ -4,7 +4,6 @@ from database import db_dependency
 from .users import user_dependency
 from models import Posts, Reactions, Comments
 from schemes import Reaction, ReactionResponse
-from typing import Optional
 
 router = APIRouter()
 

@@ -9,7 +9,7 @@ from typing import List
 router = APIRouter()
 
 
-@router.get("follow", status_code=status.HTTP_200_OK, response_model=List[GetFollower])
+@router.get("/follow", status_code=status.HTTP_200_OK, response_model=List[GetFollower])
 async def get_followers(user: user_dependency, db: db_dependency):
     if user is None:
         raise HTTPException(
