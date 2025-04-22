@@ -97,10 +97,8 @@ async def follow_user(
     return FollowUser(detail=f"You are now following {get_user_model.username}")
 
 
-@router.delete("/{user_id}/follow", status_code=status.HTTP_200_OK)
-async def undo_follow(
-    user: user_dependency, db: db_dependency, user_id: int = Path(gt=0)
-):
+@router.delete("/{user_id}/unfollow", status_code=status.HTTP_200_OK)
+async def unfollow(user: user_dependency, db: db_dependency, user_id: int = Path(gt=0)):
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"

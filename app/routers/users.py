@@ -12,9 +12,8 @@ router = APIRouter()
 user_dependency = Annotated[dict, Depends(get_current_user)]
 
 
-@router.get("/", status_code=status.HTTP_200_OK, response_model=List[GetUserResponse])
+@router.get("", status_code=status.HTTP_200_OK, response_model=List[GetUserResponse])
 async def get_users(db: db_dependency):
-
     get_user_model = (
         db.query(Users)
         .options(
@@ -28,15 +27,6 @@ async def get_users(db: db_dependency):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="No users found"
         )
-
-    for user in get_user_model:
-        print(f"\n{user.username}")
-        print("Followers:")
-        for f in user.followers:
-            print("  ➤", f.follower_user.username if f.follower_user else "None")
-        print("Following:")
-        for f in user.following:
-            print("  ➤", f.followed_user.username if f.followed_user else "None")
 
     return [
         GetUserResponse(
@@ -52,7 +42,7 @@ async def get_users(db: db_dependency):
     ]
 
 
-@router.get("", status_code=status.HTTP_200_OK)
+@router.get("/current_user", status_code=status.HTTP_200_OK)
 async def get_current_user_details(user: user_dependency, db: db_dependency):
     if user is None:
         raise HTTPException(

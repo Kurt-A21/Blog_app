@@ -9,7 +9,7 @@ router = APIRouter()
 
 
 @router.post(
-    "/{post_id}/reactions",
+    "/{post_id}/reaction",
     status_code=status.HTTP_201_CREATED,
     response_model=ReactionResponse,
 )
@@ -58,7 +58,7 @@ async def add_reaction_to_post(
 
 
 @router.post(
-    "/{post_id}/comments/{comment_id}/reactions",
+    "/{post_id}/comment/{comment_id}/reaction",
     status_code=status.HTTP_201_CREATED,
     response_model=ReactionResponse,
 )
@@ -124,7 +124,7 @@ async def add_reaction_to_comment(
 
 
 @router.put(
-    "/{post_id}/reactions/{reaction_id}",
+    "/{post_id}/reaction/{reaction_id}",
     status_code=status.HTTP_200_OK,
     response_model=ReactionResponse,
 )
@@ -181,7 +181,7 @@ async def update_post_reaction(
 
 
 @router.put(
-    "/{post_id}/comments/{comment_id}/reactions/{reaction_id}",
+    "/{post_id}/comment/{comment_id}/reaction/{reaction_id}",
     status_code=status.HTTP_200_OK,
     response_model=ReactionResponse,
 )
@@ -253,7 +253,7 @@ async def update_comment_reaction(
 
 
 @router.delete(
-    "/{post_id}/reactions/{reaction_id}",
+    "/{post_id}/reaction/{reaction_id}",
     status_code=status.HTTP_200_OK,
 )
 async def undo_post_reaction(
@@ -300,7 +300,7 @@ async def undo_post_reaction(
 
 
 @router.delete(
-    "/{post_id}/comments/{comment_id}reactions/{reaction_id}",
+    "/{post_id}/comment/{comment_id}reaction/{reaction_id}",
     status_code=status.HTTP_200_OK,
 )
 async def undo_comment_reaction(

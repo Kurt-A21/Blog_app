@@ -81,24 +81,6 @@ async def create_user(create_user_request: UserCreate, db: db_dependency):
     return {"detail": "User created successfully"}
 
 
-@router.put("/forget_password", status_code=status.HTTP_200_OK)
-async def forget_password(db: db_dependency, verify_user: UserVerification):
-
-    user_model = db.query(Users).filter(Users.id == user.get("id")).first()
-
-    if not bcrypt_context.verify(verify_user.password, user_model.password):
-        return HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect password"
-        )
-
-    user_model.password = bcrypt_context.hash(verify_user.new_password)
-
-    db.add(user_model)
-    db.commit()
-
-    return {"detail": "Password updated successfully"}
-
-
 @router.post("/token", status_code=status.HTTP_200_OK, response_model=TokenResponse)
 async def login_for_access_token(
     db: db_dependency, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]

@@ -73,15 +73,14 @@ async def get_all_posts(db: db_dependency):
 
 
 @router.get(
-    "/user_posts", status_code=status.HTTP_200_OK, response_model=List[PostResponse]
+    "user/{user_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=List[PostResponse],
 )
-async def get_user_timeline(user: user_dependency, db: db_dependency):
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication failed"
-        )
-
-    get_posts_model = db.query(Posts).filter(Posts.owner_id == user.get("id")).all()
+async def get_user_timeline(
+    user: user_dependency, db: db_dependency, user_id: int = Path(gt=0)
+):
+    get_posts_model = db.query(Posts).filter(Posts.owner_id == user_id).all()
 
     if not get_posts_model:
         raise HTTPException(
@@ -197,7 +196,7 @@ async def update_post(
     return {"detail": "Post updated successfully"}
 
 
-@router.delete("/delete/{post_id}", status_code=status.HTTP_200_OK)
+@router.delete("/{post_id}/delete", status_code=status.HTTP_200_OK)
 async def delete_post(
     user: user_dependency, db: db_dependency, post_id: int = Path(gt=0)
 ):
