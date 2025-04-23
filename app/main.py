@@ -1,6 +1,6 @@
 from fastapi import FastAPI
-from database import engine
-import models
+from db import engine
+import db as models
 from routers import router
 
 app = FastAPI(title="Social Media App")

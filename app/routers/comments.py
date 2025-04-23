@@ -1,8 +1,7 @@
 from fastapi import APIRouter, HTTPException, Path
 from starlette import status
-from database import db_dependency
+from db import db_dependency, Comments, Posts
 from .users import user_dependency
-from models import Comments, Posts
 from schemes import CommentCreate, CommentResponse, CommentUpdate, GetComments
 from sqlalchemy.orm import joinedload
 

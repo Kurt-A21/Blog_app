@@ -5,11 +5,9 @@ from typing import Annotated
 from sqlalchemy.orm import Session
 from fastapi import Depends
 import os
-from dotenv import load_dotenv
-from pathlib import Path
+from utils import load_environment
 
-BASE_DIR = Path(__file__).resolve().parent
-load_dotenv(BASE_DIR / ".env")
+load_environment()
 
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
 

@@ -1,8 +1,7 @@
 from fastapi import APIRouter, HTTPException, Path
 from starlette import status
-from database import db_dependency
+from db import db_dependency, Posts, Comments
 from .users import user_dependency
-from models import Posts, Comments
 from schemes import (
     PostCreate,
     CreatePostResponse,

@@ -2,21 +2,16 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from starlette import status
-from database import db_dependency
-from models import Users
+from db import db_dependency, Users
 from passlib.context import CryptContext
 from typing import Annotated
 from jose import jwt, JWTError
-from schemes import TokenResponse, UserCreate, UserVerification
+from schemes import TokenResponse, UserCreate
 from enum import Enum
 import os
-from dotenv import load_dotenv
-from pathlib import Path
+from utils import load_environment
 
 router = APIRouter()
-
-BASE_DIR = Path(__file__).resolve().parent
-load_dotenv(BASE_DIR / ".env")
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")

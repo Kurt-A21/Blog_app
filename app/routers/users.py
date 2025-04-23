@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from starlette import status
-from database import db_dependency
-from models import Users, Follows
+from db import db_dependency, Users, Follows
 from schemes import UserUpdate, UserEmailUpdate, GetUserResponse, UserVerification
 from typing import Annotated, List
 from .auth import get_current_user, bcrypt_context
