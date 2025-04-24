@@ -12,7 +12,7 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
-from .database import Base
+from .base_class import Base
 import uuid
 from constants import UserRole, ReactionType
 

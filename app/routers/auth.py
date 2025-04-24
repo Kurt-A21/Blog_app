@@ -1,15 +1,22 @@
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException, Depends
+from pydantic import EmailStr
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from starlette import status
-from db import db_dependency, Users
+from db.database import db_dependency
+from db.models import Users
 from passlib.context import CryptContext
 from typing import Annotated
 from jose import jwt, JWTError
 from schemes import TokenResponse, UserCreate
 from enum import Enum
 import os
-from utils import load_environment
+from utils import (
+    load_environment,
+    create_reset_token,
+    verify_reset_token,
+    send_reset_email,
+)
 
 load_environment()
 router = APIRouter()
@@ -75,6 +82,29 @@ async def create_user(create_user_request: UserCreate, db: db_dependency):
     db.add(create_user_model)
     db.commit()
     return {"detail": "User created successfully"}
+
+
+@router.post("/forgot_password/{email}", status_code=status.HTTP_200_OK)
+async def forgot_password(email: EmailStr, db: db_dependency):
+
+    existing_user = db.query(Users).filter(Users.email == email).first()
+
+    if not existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Email not found"
+        )
+
+    reset_token = create_reset_token(email, timedelta(minutes=20))
+    validate_token = verify_reset_token(reset_token)
+
+    print(reset_token)
+    print("/n")
+    print(validate_token)
+
+    reset_link = f"http://localhost:8000/reset_password?token={validate_token}"
+
+    send_reset_email(email, reset_link)
+    return {"detail": "Reset link sent to email"}
 
 
 @router.post("/token", status_code=status.HTTP_200_OK, response_model=TokenResponse)

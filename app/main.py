@@ -1,6 +1,5 @@
 from fastapi import FastAPI
-from db import engine
-import db as models
+from db import engine, Base, models
 from routers import router
 import uvicorn
 

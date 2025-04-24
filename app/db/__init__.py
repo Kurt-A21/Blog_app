@@ -1,2 +1,3 @@
 from .database import engine, db_dependency, Base
-from .models import Users, Posts, Follows, Reactions, Comments
+from .base_class import Base
+from .models import Users, Posts, Reactions, Comments, Follows
