@@ -11,6 +11,7 @@ from enum import Enum
 import os
 from utils import load_environment
 
+load_environment()
 router = APIRouter()
 
 SECRET_KEY = os.getenv("SECRET_KEY")
