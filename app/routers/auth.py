@@ -95,13 +95,9 @@ async def forgot_password(email: EmailStr, db: db_dependency):
         )
 
     reset_token = create_reset_token(email, timedelta(minutes=20))
-    validate_token = verify_reset_token(reset_token)
+    # validate_token = verify_reset_token(reset_token)
 
-    print(reset_token)
-    print("/n")
-    print(validate_token)
-
-    reset_link = f"http://localhost:8000/reset_password?token={validate_token}"
+    reset_link = f"http://localhost:8000/reset_password?token={reset_token}"
 
     send_reset_email(email, reset_link)
     return {"detail": "Reset link sent to email"}
