@@ -58,6 +58,9 @@ Create .env in social_media_api/app
 SECRET_KEY="" # Use openssl rand -base64 48 in terminal
 ALGORITHM="HS256"
 DATABASE_URL="sqlite:///./social_media_app.db"
+EMAIL_ADDRESS="youremail@gmail.com"
+APP_PASSWORD="" # Your email app password
+SMTP_SERVER="" # Your smtp server e.g. smtp.gmail.com
 ```
 
 ### 5. Run App
@@ -72,20 +75,22 @@ uvicorn app.main:app --reload
 
 ### 🔐 Auth
 
-| Method | Endpoint       | Description         |
-| ------ | -------------- | ------------------- |
-| POST   | /auth/regsiter | Create a user       |
-| POST   | /auth/token    | Create bearer token |
+| Method | Endpoint                      | Description                                        |
+| ------ | ----------------------------- | -------------------------------------------------- |
+| POST   | /auth/regsiter                | Create a user                                      |
+| POST   | /auth/token                   | Create bearer token                                |
+| POST   | /auth/forgot_password/{email} | Sends JWT reset token to email                     |
+| PUT    | /auth/reset_password/         | Validates JWT reset token to enable password reset |
 
 ### 🧙‍♂️ Admin Routes (Role: Admin)
 
-| Method | Endpoint                                   | Description                        | Auth Required |
-| ------ | ------------------------------------------ | ---------------------------------- | ------------- |
-| GET    | /admin/                                    | Get all users details              | Yes(Admin)    |
+| Method | Endpoint                                   | Description                       | Auth Required |
+| ------ | ------------------------------------------ | --------------------------------- | ------------- |
+| GET    | /admin/                                    | Get all users details             | Yes(Admin)    |
 | GET    | /admin/get_user_by_id                      | Get user by user id or account id | Yes(Admin)    |
-| DELETE | /admin/user/{user_id}/delete_user          | Delete a user                      | Yes(Admin)    |
-| DELETE | /admin/post/{post_id}/delete_post          | Delete a user's post               | Yes(Admin)    |
-| DE:ETE | /admin/post/{post_id}/comment/{comment_id} | Delete a comment                   | Yes(Admin)    |
+| DELETE | /admin/user/{user_id}/delete_user          | Delete a user                     | Yes(Admin)    |
+| DELETE | /admin/post/{post_id}/delete_post          | Delete a user's post              | Yes(Admin)    |
+| DE:ETE | /admin/post/{post_id}/comment/{comment_id} | Delete a comment                  | Yes(Admin)    |
 
 ### 🧑 User Routes
 
@@ -135,7 +140,6 @@ uvicorn app.main:app --reload
 | PUT    | /posts/{post_id}/comment/{comment_id}/reaction/{reaction_id} | Update a reaction on a comment | Yes(JWT)      |
 | DELETE | /posts/{post_id}/reaction/{reaction_id}                      | Undo a reaction on a post      | Yes(JWT)      |
 | DELETE | /posts/{post_id}/comment/{comment_id}/reaction/{reaction_id} | Undo a reaction on a comment   | Yes(JWT)      |
-
 
 ## 📄 License
 

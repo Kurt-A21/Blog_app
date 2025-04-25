@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import EmailStr
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from starlette import status
@@ -8,7 +8,7 @@ from db.models import Users
 from passlib.context import CryptContext
 from typing import Annotated
 from jose import jwt, JWTError
-from schemes import TokenResponse, UserCreate
+from schemes import TokenResponse, UserCreate, ResetPassword
 from enum import Enum
 import os
 from utils import (
@@ -95,12 +95,36 @@ async def forgot_password(email: EmailStr, db: db_dependency):
         )
 
     reset_token = create_reset_token(email, timedelta(minutes=20))
-    # validate_token = verify_reset_token(reset_token)
 
-    reset_link = f"http://localhost:8000/reset_password?token={reset_token}"
+    # reset_link = f"http://localhost:8000/auth/reset_password?reset_token={reset_token}"
 
-    send_reset_email(email, reset_link)
+    send_reset_email(email, existing_user.username, reset_token)
     return {"detail": "Reset link sent to email"}
+
+
+@router.put("/reset_password/", status_code=status.HTTP_201_CREATED)
+async def reset_password(
+    db: db_dependency,
+    reset_password_request: ResetPassword,
+    reset_token: str = Query(None),
+):
+
+    validate_user = verify_reset_token(reset_token)
+
+    if not validate_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Failed Authentication"
+        )
+
+    validate_user = db.query(Users).filter(Users.email == validate_user).first()
+
+    hashed_password = bcrypt_context.hash(reset_password_request.new_password)
+
+    validate_user.password = hashed_password
+
+    db.add(validate_user)
+    db.commit()
+    return {"detail": "Password reset successful"}
 
 
 @router.post("/token", status_code=status.HTTP_200_OK, response_model=TokenResponse)

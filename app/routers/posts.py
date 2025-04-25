@@ -76,9 +76,7 @@ async def get_all_posts(db: db_dependency):
     status_code=status.HTTP_200_OK,
     response_model=List[PostResponse],
 )
-async def get_user_timeline(
-    user: user_dependency, db: db_dependency, user_id: int = Path(gt=0)
-):
+async def get_user_timeline(db: db_dependency, user_id: int = Path(gt=0)):
     get_posts_model = db.query(Posts).filter(Posts.owner_id == user_id).all()
 
     if not get_posts_model:

@@ -7,9 +7,10 @@ load_environment()
 
 EMAIL = os.getenv("EMAIL_ADDRESS")
 APP_PASSWORD = os.getenv("APP_PASSWORD")
+SMTP_SERVER = os.getenv("SMTP_SERVER")
 
 
-def send_reset_email(to_email, reset_link):
+def send_reset_email(to_email, username, reset_token):
     message = EmailMessage()
     message["Subject"] = "Password Reset Request"
     message["From"] = EMAIL
@@ -19,13 +20,13 @@ def send_reset_email(to_email, reset_link):
         f"""
       <html>
         <body>
-            <p>Hi,<br><br>
+            <p>Hi {username},<br><br>
                You requested a password reset.<br>
-               Click the link below to reset your password:<br>
-               <a href="{reset_link}">Reset Password</a><br><br>
-               If you didn't request this, ignore this email.<br><br>
-               Thanks,<br>
-               Social Media App Team
+               Copy the token below to reset your password:<br>
+               <strong>{reset_token}</strong><br><br>
+               This token will expire in 20 minutes. If you did not request this reset, you can safely ignore this email..<br><br>
+               Kind Regards,<br>
+               Your App Team
             </p>
         </body>
     </html>
@@ -33,24 +34,8 @@ def send_reset_email(to_email, reset_link):
         subtype="html",
     )
 
-    message.add_alternative(
-        f"""
-    Hi,
-                    
-    You requested a password reset. Click the link below to reset your password:
-    {reset_link}
-
-    If you did not request this, please ignore this email.
-
-    Kind regards,
-    Social Media App team
-
-
-                """
-    )
-
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+        with smtplib.SMTP_SSL(SMTP_SERVER, 465) as smtp:
             smtp.login(EMAIL, APP_PASSWORD)
             smtp.send_message(message)
     except Exception as e:

@@ -1,8 +1,7 @@
 from pydantic import UUID4, BaseModel, Field, EmailStr, ConfigDict
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime
 from constants import UserRole
-from .follow import GetFollower
 
 
 class UserCreate(BaseModel):

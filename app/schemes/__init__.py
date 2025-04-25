@@ -6,7 +6,7 @@ from .user import (
     GetUserResponse,
     UserVerification,
 )
-from .auth import TokenResponse
+from .auth import TokenResponse, ResetPassword
 from .posts import PostCreate, PostUpdate, PostResponse, CreatePostResponse
 from .comments import CommentCreate, CommentResponse, CommentUpdate, GetComments
 from .reactions import Reaction, ReactionResponse, ReactionListResponse, GetReactions
