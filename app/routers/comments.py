@@ -1,8 +1,7 @@
 from fastapi import APIRouter, HTTPException, Path
 from starlette import status
-from database import db_dependency
+from db import db_dependency, Comments, Posts
 from .users import user_dependency
-from models import Comments, Posts
 from schemes import CommentCreate, CommentResponse, CommentUpdate, GetComments
 from sqlalchemy.orm import joinedload
 
@@ -10,7 +9,7 @@ router = APIRouter()
 
 
 @router.post(
-    "/{post_id}/comments",
+    "/{post_id}/comment",
     status_code=status.HTTP_201_CREATED,
     response_model=CommentResponse,
 )
@@ -49,7 +48,7 @@ async def create_comment(
 
 
 @router.put(
-    "/{post_id}/comments/{comment_id}",
+    "/{post_id}/comment/{comment_id}",
     status_code=status.HTTP_200_OK,
     response_model=CommentUpdate,
 )

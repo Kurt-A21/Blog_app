@@ -1,23 +1,25 @@
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
+from pydantic import EmailStr
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from starlette import status
-from database import db_dependency
-from models import Users
+from db.database import db_dependency
+from db.models import Users
 from passlib.context import CryptContext
 from typing import Annotated
 from jose import jwt, JWTError
-from schemes.auth import TokenResponse
-from schemes.user import UserCreate
+from schemes import TokenResponse, UserCreate, ResetPassword
 from enum import Enum
 import os
-from dotenv import load_dotenv
-from pathlib import Path
+from utils import (
+    load_environment,
+    create_reset_token,
+    verify_reset_token,
+    send_reset_email,
+)
 
+load_environment()
 router = APIRouter()
-
-BASE_DIR = Path(__file__).resolve().parent
-load_dotenv(BASE_DIR / ".env")
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
@@ -80,6 +82,49 @@ async def create_user(create_user_request: UserCreate, db: db_dependency):
     db.add(create_user_model)
     db.commit()
     return {"detail": "User created successfully"}
+
+
+@router.post("/forgot_password/{email}", status_code=status.HTTP_200_OK)
+async def forgot_password(email: EmailStr, db: db_dependency):
+
+    existing_user = db.query(Users).filter(Users.email == email).first()
+
+    if not existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Email not found"
+        )
+
+    reset_token = create_reset_token(email, timedelta(minutes=20))
+
+    # reset_link = f"http://localhost:8000/auth/reset_password?reset_token={reset_token}"
+
+    send_reset_email(email, existing_user.username, reset_token)
+    return {"detail": "Reset link sent to email"}
+
+
+@router.put("/reset_password/", status_code=status.HTTP_201_CREATED)
+async def reset_password(
+    db: db_dependency,
+    reset_password_request: ResetPassword,
+    reset_token: str = Query(None),
+):
+
+    validate_user = verify_reset_token(reset_token)
+
+    if not validate_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Failed Authentication"
+        )
+
+    validate_user = db.query(Users).filter(Users.email == validate_user).first()
+
+    hashed_password = bcrypt_context.hash(reset_password_request.new_password)
+
+    validate_user.password = hashed_password
+
+    db.add(validate_user)
+    db.commit()
+    return {"detail": "Password reset successful"}
 
 
 @router.post("/token", status_code=status.HTTP_200_OK, response_model=TokenResponse)

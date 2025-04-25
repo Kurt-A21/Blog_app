@@ -1,5 +1,12 @@
-from .user import UserCreate, UserUpdate, UserResponse, UserEmailUpdate, GetUserResponse
-from .auth import TokenResponse
+from .user import (
+    UserCreate,
+    UserUpdate,
+    UserResponse,
+    UserEmailUpdate,
+    GetUserResponse,
+    UserVerification,
+)
+from .auth import TokenResponse, ResetPassword
 from .posts import PostCreate, PostUpdate, PostResponse, CreatePostResponse
 from .comments import CommentCreate, CommentResponse, CommentUpdate, GetComments
 from .reactions import Reaction, ReactionResponse, ReactionListResponse, GetReactions
