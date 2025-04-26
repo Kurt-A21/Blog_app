@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Path
 from starlette import status
-from db import db_dependency, Posts, Comments
+from db import db_dependency, Posts, Comments, Users
 from .users import user_dependency
 from schemes import (
     PostCreate,
@@ -11,7 +11,7 @@ from schemes import (
     GetComments,
     GetReactions,
 )
-from typing import List
+from typing import List, Optional
 from sqlalchemy.orm import joinedload
 
 router = APIRouter()
@@ -34,6 +34,7 @@ async def get_all_posts(db: db_dependency):
         PostResponse(
             id=post.id,
             created_by=post.created_by,
+            tagged_users=post.get_tagged_user(),
             content=post.content,
             image_url=post.image_url,
             created_at=post.created_at,
@@ -72,7 +73,7 @@ async def get_all_posts(db: db_dependency):
 
 
 @router.get(
-    "user/{user_id}",
+    "/user/{user_id}",
     status_code=status.HTTP_200_OK,
     response_model=List[PostResponse],
 )
@@ -88,6 +89,7 @@ async def get_user_timeline(db: db_dependency, user_id: int = Path(gt=0)):
         PostResponse(
             id=post.id,
             created_by=post.created_by,
+            tagged_users=post.get_tagged_user(),
             content=post.content,
             image_url=post.image_url,
             created_at=post.created_at,
@@ -126,30 +128,44 @@ async def get_user_timeline(db: db_dependency, user_id: int = Path(gt=0)):
 
 
 @router.post(
-    "/create", status_code=status.HTTP_201_CREATED, response_model=CreatePostResponse
+    "/create/", status_code=status.HTTP_201_CREATED, response_model=CreatePostResponse
 )
 async def create_post(
-    user: user_dependency, db: db_dependency, post_request: PostCreate
+    user: user_dependency,
+    db: db_dependency,
+    post_request: PostCreate,
 ):
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication failed"
         )
 
+    tagged_users = post_request.tagged_users
+
+    for username in tagged_users:
+        check_tagged_users = db.query(Users).filter(Users.username == username).first()
+        if check_tagged_users is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+
     post_model = Posts(
-        **post_request.model_dump(),
         created_by=user.get("username"),
-        owner_id=user.get("id")
+        owner_id=user.get("id"),
+        content=post_request.content,
+        image_url=post_request.image_url,
     )
+
+    post_model.set_tagged_user(tagged_users)
 
     db.add(post_model)
     db.commit()
+    db.refresh(post_model)
 
     return {
         "detail": "Post created successfully",
         "post_details": PostResponse(
             id=user.get("id"),
             created_by=user.get("username"),
+            tagged_users=post_model.get_tagged_user(),
             content=post_model.content,
             image_url=post_model.image_url,
             created_at=post_model.created_at,
