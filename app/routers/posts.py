@@ -11,7 +11,8 @@ from schemes import (
     GetComments,
     GetReactions,
 )
-from typing import List, Optional
+import json
+from typing import List
 from sqlalchemy.orm import joinedload
 
 router = APIRouter()
@@ -143,9 +144,17 @@ async def create_post(
     tagged_users = post_request.tagged_users
 
     for username in tagged_users:
+        if tagged_users == user.get("username"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User can't tag themself",
+            )
+
         check_tagged_users = db.query(Users).filter(Users.username == username).first()
         if check_tagged_users is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User to tag not found"
+            )
 
     post_model = Posts(
         created_by=user.get("username"),
@@ -209,6 +218,43 @@ async def update_post(
     return {"detail": "Post updated successfully"}
 
 
+@router.delete("/{post_id}/delete_tags", status_code=status.HTTP_200_OK)
+async def remove_user_tags(
+    user: user_dependency, db: db_dependency, post_id: int = Path(gt=0)
+):
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication failed"
+        )
+
+    query_post = db.query(Posts).filter(Posts.id == post_id).first()
+
+    if query_post is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
+        )
+
+    post = db.query(Posts).filter(Posts.owner_id == user.get("id")).first()
+
+    if post is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authorized to update this post",
+        )
+
+    if query_post.tagged_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Post has no user tags"
+        )
+
+    db.query(Posts).filter(Posts.id == post_id).update(
+        {Posts.tagged_user: json.dumps([])}
+    )
+    db.commit()
+
+    return {"detail": "Tagged users removed from post"}
+
+
 @router.delete("/{post_id}/delete", status_code=status.HTTP_200_OK)
 async def delete_post(
     user: user_dependency, db: db_dependency, post_id: int = Path(gt=0)
@@ -223,6 +269,14 @@ async def delete_post(
     if query_post is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
+        )
+
+    post = db.query(Posts).filter(Posts.owner_id == user.get("id")).first()
+
+    if post is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authorized to delete this post",
         )
 
     db.query(Posts).filter(Posts.id == post_id).delete()
