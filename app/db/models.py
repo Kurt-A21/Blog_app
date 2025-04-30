@@ -29,10 +29,10 @@ class Users(Base):
     password = Column(String, nullable=False)
     bio = Column(Text, nullable=True)
     avatar = Column(String, nullable=True, default=None)  # add image path
-    is_active = Column(Boolean, default=True)
+    is_active = Column(Boolean, default=False)
     role = Column(SQLAEnum(UserRole), default=UserRole.USER, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
-    last_login = Column(DateTime, server_default=func.now(), nullable=True)
+    last_seen = Column(DateTime, nullable=True)
 
     posts = relationship("Posts", back_populates="user")
     comments = relationship("Comments", back_populates="user")

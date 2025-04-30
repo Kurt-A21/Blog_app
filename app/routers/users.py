@@ -10,7 +10,6 @@ router = APIRouter()
 
 user_dependency = Annotated[dict, Depends(get_current_user)]
 
-
 @router.get("", status_code=status.HTTP_200_OK, response_model=List[GetUserResponse])
 async def get_users(db: db_dependency):
     get_user_model = (
