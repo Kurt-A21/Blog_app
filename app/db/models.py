@@ -50,7 +50,9 @@ class Posts(Base):
     created_by = Column(String, nullable=False)
     content = Column(String, nullable=False)
     image_url = Column(String, nullable=True)
-    created_at = Column(DateTime,default=datetime.now(timezone.utc), server_defasult=func.now())
+    created_at = Column(
+        DateTime, default=datetime.now(timezone.utc), server_defasult=func.now()
+    )
 
     user = relationship("Users", back_populates="posts")
     comments = relationship("Comments", back_populates="post")
@@ -60,7 +62,20 @@ class Posts(Base):
         self.tagged_user = json.dumps(users)
 
     def get_tagged_user(self):
+        if self.tagged_user is None:
+            return []
         return json.loads(self.tagged_user)
+
+    def is_user_tagged(self, username: str):
+        if not self.tagged_user:
+            return False
+
+        try:
+            tagged_users = json.loads(self.tagged_user)
+        except json.JSONDecodeError:
+            return False
+
+        return username in tagged_users
 
 
 class Comments(Base):

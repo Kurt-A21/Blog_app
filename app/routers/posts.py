@@ -10,6 +10,7 @@ from schemes import (
     ReactionListResponse,
     GetComments,
     GetReactions,
+    UserTag,
 )
 import json
 from typing import List
@@ -218,7 +219,73 @@ async def update_post(
     return {"detail": "Post updated successfully"}
 
 
-@router.delete("/{post_id}/delete_tags", status_code=status.HTTP_200_OK)
+@router.post(
+    "/{post_id}/add_user_tag",
+    status_code=status.HTTP_200_OK,
+)
+async def add_user_tag(
+    user: user_dependency,
+    db: db_dependency,
+    user_tag: UserTag,
+    post_id: int = Path(gt=0),
+):
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication failed"
+        )
+
+    query_post = db.query(Posts).filter(Posts.id == post_id).first()
+
+    if query_post is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
+        )
+
+    post = db.query(Posts).filter(Posts.owner_id == user.get("id")).first()
+
+    if post is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authorized to update this post",
+        )
+
+    if query_post.tagged_user:
+        try:
+            existing_tags = json.loads(query_post.tagged_user)
+            if existing_tags:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Post already has user tags",
+                )
+
+        except json.JSONDecodeError:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Server error: tagged_user data is invalid JSON",
+            )
+
+    for username in user_tag.tagged_users:
+        if username == user.get("username"):
+            raise HTTPException(status_code=400, detail="User can't tag themselves")
+
+        if query_post.is_user_tagged(username):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"User '{username}' already tagged",
+            )
+
+        tagged_user = db.query(Users).filter(Users.username == username).first()
+        if not tagged_user:
+            raise HTTPException(status_code=404, detail=f"User '{username}' not found")
+
+    query_post.tagged_user = json.dumps(user_tag.tagged_users)
+    db.commit()
+    db.refresh(post)
+
+    return {"detail": "Added user tag successfully"}
+
+
+@router.delete("/{post_id}/delete_tag", status_code=status.HTTP_200_OK)
 async def remove_user_tags(
     user: user_dependency, db: db_dependency, post_id: int = Path(gt=0)
 ):

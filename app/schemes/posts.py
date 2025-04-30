@@ -16,11 +16,16 @@ class PostCreate(BaseModel):
 
 
 class PostUpdate(BaseModel):
-    tagged_userss: Optional[list[str]] = []
     content: Optional[str] = Field(min_length=0, max_length=280)
     image_url: Optional[str] = Field(
         description="Image is not needed to create a account", default=None
     )
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserTag(BaseModel):
+    tagged_users: Optional[list[str]] = []
 
     model_config = ConfigDict(from_attributes=True)
 
