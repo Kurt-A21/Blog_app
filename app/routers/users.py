@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from starlette import status
-from db import db_dependency, Users, Follows
+from db import db_dependency, Users, Follows, Posts, Comments, Reactions
 from schemes import UserUpdate, UserEmailUpdate, GetUserResponse, UserVerification
 from typing import Annotated, List
 from .auth import get_current_user, bcrypt_context
@@ -9,6 +9,7 @@ from sqlalchemy.orm import joinedload
 router = APIRouter()
 
 user_dependency = Annotated[dict, Depends(get_current_user)]
+
 
 @router.get("", status_code=status.HTTP_200_OK, response_model=List[GetUserResponse])
 async def get_users(db: db_dependency):
@@ -116,14 +117,27 @@ async def update_user_email(
     return {"detail": "User email updated successfully"}
 
 
-@router.delete("/delete_user", status_code=status.HTTP_200_OK)
-async def delete_user(user: user_dependency, db: db_dependency):
+@router.delete("/deactivate_account", status_code=status.HTTP_200_OK)
+async def deactivate_account(user: user_dependency, db: db_dependency):
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
         )
 
-    db.query(Users).filter(Users.id == user.get("id")).delete()
-    db.commit()
+    db_user = db.query(Users).filter(Users.id == user.get("id")).first()
 
-    return {"detail": "User deleted successfully"}
+    if db_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
+
+    try:
+        db.delete(db_user)
+        db.commit()
+        return {"detail": "User and all related data deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while deactivating the account: {str(e)}",
+        )
