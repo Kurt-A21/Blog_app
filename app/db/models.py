@@ -31,7 +31,7 @@ class Users(Base):
     avatar = Column(String, nullable=True, default=None)  # add image path
     is_active = Column(Boolean, default=False)
     role = Column(SQLAEnum(UserRole), default=UserRole.USER, nullable=False)
-    created_at = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime, nullable=False)
     last_seen = Column(DateTime, nullable=True)
 
     posts = relationship("Posts", back_populates="user")
@@ -50,9 +50,8 @@ class Posts(Base):
     created_by = Column(String, nullable=False)
     content = Column(String, nullable=False)
     image_url = Column(String, nullable=True)
-    created_at = Column(
-        DateTime, default=datetime.now(timezone.utc), server_defasult=func.now()
-    )
+    created_at = Column(DateTime, nullable=False)
+    updated_date = Column(DateTime, nullable=True)
 
     user = relationship("Users", back_populates="posts")
     comments = relationship("Comments", back_populates="post")
@@ -85,7 +84,8 @@ class Comments(Base):
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     post_id = Column(Integer, ForeignKey("posts.id"), nullable=False)
     content = Column(String, nullable=False)
-    created_at = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime, nullable=False)
+    updated_date = Column(DateTime, nullable=True)
 
     user = relationship("Users", back_populates="comments")
     post = relationship("Posts", back_populates="comments")

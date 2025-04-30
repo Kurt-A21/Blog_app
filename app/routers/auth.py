@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import pytz
 from fastapi import APIRouter, Security, HTTPException, Depends, Query
 from pydantic import EmailStr
 from fastapi.security import (
@@ -9,7 +10,6 @@ from fastapi.security import (
 from starlette import status
 from db.database import db_dependency
 from db.models import Users
-from datetime import datetime, timezone
 from passlib.context import CryptContext
 from typing import Annotated, Union
 from jose import jwt, JWTError
@@ -93,6 +93,7 @@ async def create_user(create_user_request: UserCreate, db: db_dependency):
         bio=create_user_request.bio,
         avatar=create_user_request.avatar,
         role=create_user_request.user_role,
+        created_at=datetime.now(pytz.utc),
     )
 
     db.add(create_user_model)
@@ -178,6 +179,6 @@ async def logout(user: Annotated[dict, Depends(get_current_user)], db: db_depend
     get_current_user = db.query(Users).filter(Users.id == user.get("id")).first()
 
     get_current_user.is_active = False
-    get_current_user.last_seen = datetime.now(timezone.utc)
+    get_current_user.last_seen = datetime.now(pytz.utc)
     db.commit()
     return {"detail": "Logged out"}

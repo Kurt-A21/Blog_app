@@ -13,6 +13,8 @@ from schemes import (
     UserTag,
 )
 import json
+from datetime import datetime
+import pytz
 from typing import List
 from sqlalchemy.orm import joinedload
 
@@ -162,6 +164,7 @@ async def create_post(
         owner_id=user.get("id"),
         content=post_request.content,
         image_url=post_request.image_url,
+        created_at=datetime.now(pytz.utc)
     )
 
     post_model.set_tagged_user(tagged_users)
@@ -212,6 +215,7 @@ async def update_post(
 
     update_posts_model.content = post_request.content
     update_posts_model.image_url = post_request.image_url
+    update_posts_model.updated_date = datetime.now(pytz.utc)
 
     db.add(update_posts_model)
     db.commit()
