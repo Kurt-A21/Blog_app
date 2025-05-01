@@ -69,9 +69,6 @@ async def upload_profile_picture(
 
     check_user = db.query(Users).filter(Users.id == user.get("id")).first()
 
-    if not check_user:
-        raise HTTPException(status_code=404, detail="User not found")
-
     if check_user.avatar:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -117,9 +114,6 @@ async def update_profile_picture(
 
     check_user = db.query(Users).filter(Users.id == user.get("id")).first()
 
-    if not check_user:
-        raise HTTPException(status_code=404, detail="User not found")
-
     if check_user.avatar:
         filename = file.filename
         extension = filename.rsplit(".")[-1].lower()
@@ -153,6 +147,46 @@ async def update_profile_picture(
         db.commit()
 
         return {"detail": "Profile picture updated successfully"}
+
+
+@router.delete("/remove_profile_picture", status_code=status.HTTP_200_OK)
+async def remove_profile_picture(user: user_dependency, db: db_dependency):
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
+        )
+
+    check_user = db.query(Users).filter(Users.id == user.get("id")).first()
+
+    if check_user.avatar is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User does not have a profile picture",
+        )
+
+    FILEPATH = Path(__file__).resolve().parent.parent / "static"
+    old_avatar_path = FILEPATH / check_user.avatar
+
+    try:
+        old_avatar_path.unlink()
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to delete profile picture: {e}"
+        )
+
+    default_avatar = "avatar.png"
+    default_avatar_path = FILEPATH / default_avatar
+
+    if default_avatar_path is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Default avatar image not found",
+        )
+
+    check_user.avatar = default_avatar
+    db.commit()
+
+    return {"detail": "Profile picture removed successfully"}
 
 
 @router.put("/change_password", status_code=status.HTTP_200_OK)
