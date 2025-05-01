@@ -112,12 +112,14 @@ async def upload_profile_picture(
     generated_name = FILEPATH / token_name
     file_content = await file.read()
 
-    with open(generated_name, "wb") as file:
-        file.write(file_content)
+    with open(generated_name, "wb") as f:
+        f.write(file_content)
 
     img = Image.open(generated_name)
     resized_img = img.resize(size=(200, 200))
     resized_img.save(generated_name)
+
+    await file.close()
 
     check_user.avatar = token_name
     db.commit()
@@ -158,12 +160,14 @@ async def update_profile_picture(
         generated_name = FILEPATH / token_name
         file_content = await file.read()
 
-        with open(generated_name, "wb") as file:
-            file.write(file_content)
+        with open(generated_name, "wb") as f:
+            f.write(file_content)
 
         img = Image.open(generated_name)
         resized_img = img.resize(size=(200, 200))
         resized_img.save(generated_name)
+
+        await file.close()
 
         check_user.avatar = token_name
         db.commit()
