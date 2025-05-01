@@ -67,16 +67,27 @@ async def upload_profile_picture(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
         )
 
-    FILEPATH = Path(__file__).resolve().parent.parent / "static"
-    FILEPATH.mkdir(parents=True, exist_ok=True)
+    check_user = db.query(Users).filter(Users.id == user.get("id")).first()
+
+    if not check_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if check_user.avatar:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User already have a profile picture",
+        )
+
     filename = file.filename
     extension = filename.rsplit(".")[-1].lower()
-
     if extension not in ["png", "jpg", "jpeg"]:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
             detail="File extension not allowed",
         )
+
+    FILEPATH = Path(__file__).resolve().parent.parent / "static"
+    FILEPATH.mkdir(parents=True, exist_ok=True)
 
     token_name = secrets.token_hex(10) + "." + extension
     generated_name = FILEPATH / token_name
@@ -86,12 +97,62 @@ async def upload_profile_picture(
         file.write(file_content)
 
     img = Image.open(generated_name)
-    img.resize(size=(200, 200))
-    img.save(generated_name)
+    resized_img = img.resize(size=(200, 200))
+    resized_img.save(generated_name)
 
-    file.close()
+    check_user.avatar = token_name
+    db.commit()
 
     return {"detail": "Profile picture uploaded successfully"}
+
+
+@router.put("/update_profile_picture", status_code=status.HTTP_200_OK)
+async def update_profile_picture(
+    user: user_dependency, db: db_dependency, file: UploadFile = File(...)
+):
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
+        )
+
+    check_user = db.query(Users).filter(Users.id == user.get("id")).first()
+
+    if not check_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if check_user.avatar:
+        filename = file.filename
+        extension = filename.rsplit(".")[-1].lower()
+
+        if extension not in ["png", "jpg", "jpeg"]:
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                detail="File extension not allowed",
+            )
+
+        FILEPATH = Path(__file__).resolve().parent.parent / "static"
+        FILEPATH.mkdir(parents=True, exist_ok=True)
+
+        if check_user.avatar:
+            old_avatar_path = FILEPATH / check_user.avatar
+            if old_avatar_path.exists():
+                old_avatar_path.unlink()
+
+        token_name = secrets.token_hex(10) + "." + extension
+        generated_name = FILEPATH / token_name
+        file_content = await file.read()
+
+        with open(generated_name, "wb") as file:
+            file.write(file_content)
+
+        img = Image.open(generated_name)
+        resized_img = img.resize(size=(200, 200))
+        resized_img.save(generated_name)
+
+        check_user.avatar = token_name
+        db.commit()
+
+        return {"detail": "Profile picture updated successfully"}
 
 
 @router.put("/change_password", status_code=status.HTTP_200_OK)
