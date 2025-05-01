@@ -1,17 +1,21 @@
 from fastapi import APIRouter, File, UploadFile, HTTPException, Depends
-from fastapi.staticfiles import StaticFiles
 from PIL import Image
 import secrets
 from pathlib import Path
 from starlette import status
 from db import db_dependency, Users, Follows
-from schemes import UserUpdate, UserEmailUpdate, GetUserResponse, UserVerification
+from schemes import (
+    UserUpdate,
+    UserEmailUpdate,
+    GetUserResponse,
+    UserVerification,
+    UserResponse,
+)
 from typing import Annotated, List
 from .auth import get_current_user, bcrypt_context
 from sqlalchemy.orm import joinedload
 
 router = APIRouter()
-router.mount("/static", StaticFiles(directory="static"), name="static")
 
 user_dependency = Annotated[dict, Depends(get_current_user)]
 
@@ -32,12 +36,14 @@ async def get_users(db: db_dependency):
             status_code=status.HTTP_404_NOT_FOUND, detail="No users found"
         )
 
+    BASE_URL = "http://127.0.0.1:8000"
+
     return [
         GetUserResponse(
             id=user.id,
             username=user.username,
             bio=user.bio,
-            avatar=user.avatar or "/static/avatar.png",
+            avatar=f"{BASE_URL}/static/{user.avatar or 'avatar.png'}",
             followers=len([f for f in user.followers if f.follower_user]),
             following=len([f for f in user.following if f.followed_user]),
             is_active=user.is_active,
@@ -46,7 +52,9 @@ async def get_users(db: db_dependency):
     ]
 
 
-@router.get("/current_user", status_code=status.HTTP_200_OK)
+@router.get(
+    "/current_user", status_code=status.HTTP_200_OK, response_model=UserResponse
+)
 async def get_current_user_details(user: user_dependency, db: db_dependency):
     if user is None:
         raise HTTPException(
@@ -55,7 +63,21 @@ async def get_current_user_details(user: user_dependency, db: db_dependency):
 
     get_user_model = db.query(Users).filter(Users.id == user.get("id")).first()
 
-    return get_user_model
+    BASE_URL = "http://127.0.0.1:8000"
+    avatar_url = f"{BASE_URL}/static/{get_user_model.avatar or 'avatar.png'}"
+
+    return UserResponse(
+        id=get_user_model.id,
+        account_id=get_user_model.account_id,
+        username=get_user_model.username,
+        email=get_user_model.email,
+        bio=get_user_model.bio,
+        avatar=avatar_url,
+        user_type=get_user_model.role,
+        is_active=get_user_model.is_active,
+        created_at=get_user_model.created_at,
+        last_login=get_user_model.last_seen,
+    )
 
 
 @router.post("/upload_profile_picture", status_code=status.HTTP_200_OK)

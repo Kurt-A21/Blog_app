@@ -1,9 +1,14 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from db import engine, Base, models
 from routers import router
 import uvicorn
+from pathlib import Path
 
 app = FastAPI(title="Social Media App")
+
+static_dir = Path(__file__).resolve().parent / "static"
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 models.Base.metadata.create_all(bind=engine)
 

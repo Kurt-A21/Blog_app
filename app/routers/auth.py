@@ -7,6 +7,7 @@ from fastapi.security import (
     OAuth2PasswordBearer,
     APIKeyHeader,
 )
+from pathlib import Path
 from starlette import status
 from db.database import db_dependency
 from db.models import Users
@@ -86,11 +87,24 @@ async def get_current_user(
 async def create_user(create_user_request: UserCreate, db: db_dependency):
     hashed_password = bcrypt_context.hash(create_user_request.password)
 
+    FILEPATH = Path(__file__).resolve().parent.parent / "static"
+    default_avatar = "avatar.png"
+    default_avatar_path = FILEPATH / default_avatar
+
+    if default_avatar_path is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Default avatar image not found",
+        )
+
+    default_avatar = create_user_request.avatar
+
     create_user_model = Users(
         username=create_user_request.username,
         email=create_user_request.email,
         password=hashed_password,
         bio=create_user_request.bio,
+        avatar=default_avatar,
         role=create_user_request.user_role,
         created_at=datetime.now(pytz.utc),
     )
