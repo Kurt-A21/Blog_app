@@ -242,7 +242,7 @@ async def upload_image_on_post(
     if check_post.image_url:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User already have a image on this post",
+            detail="User already has an image for this post",
         )
 
     filename = file.filename
@@ -272,7 +272,58 @@ async def upload_image_on_post(
     check_post.image_url = token_name
     db.commit()
 
-    return {"detail": "Profile picture uploaded successfully"}
+    return {"detail": "Image on post uploaded successfully"}
+
+
+@router.put("/{post_id}/update_image", status_code=status.HTTP_200_OK)
+async def update_image_on_post(
+    user: user_dependency,
+    db: db_dependency,
+    post_id: int = Path(gt=0),
+    file: UploadFile = File(...),
+):
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
+        )
+
+    check_post = db.query(Posts).filter(Posts.id == post_id).first()
+
+    if check_post.image_url:
+        filename = file.filename
+        extension = filename.rsplit(".")[-1].lower()
+
+        if extension not in ["png", "jpg", "jpeg"]:
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                detail="File extension not allowed",
+            )
+
+        FILEPATH = Path(__file__).resolve().parent.parent / "static"
+        FILEPATH.mkdir(parents=True, exist_ok=True)
+
+        if check_post.image_url:
+            old_avatar_path = FILEPATH / check_post.image_url
+            if old_avatar_path.exists():
+                old_avatar_path.unlink()
+
+        token_name = secrets.token_hex(10) + "." + extension
+        generated_name = FILEPATH / token_name
+        file_content = await file.read()
+
+        with open(generated_name, "wb") as f:
+            f.write(file_content)
+
+        img = Image.open(generated_name)
+        resized_img = img.resize(size=(200, 200))
+        resized_img.save(generated_name)
+
+        await file.close()
+
+        check_post.image_url = token_name
+        db.commit()
+
+        return {"detail": "Image on post updated successfully"}
 
 
 @router.post(

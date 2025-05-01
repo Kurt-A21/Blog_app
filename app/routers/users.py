@@ -94,7 +94,7 @@ async def upload_profile_picture(
     if check_user.avatar:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User already have a profile picture",
+            detail="User already has a profile picture",
         )
 
     filename = file.filename
