@@ -1,5 +1,7 @@
 from fastapi import APIRouter, HTTPException, Path
 from starlette import status
+from datetime import datetime
+import pytz
 from db import db_dependency, Comments, Posts
 from .users import user_dependency
 from schemes import CommentCreate, CommentResponse, CommentUpdate, GetComments
@@ -32,7 +34,10 @@ async def create_comment(
         )
 
     comment_model = Comments(
-        **comment_request.model_dump(), owner_id=user.get("id"), post_id=post_id
+        **comment_request.model_dump(),
+        owner_id=user.get("id"),
+        post_id=post_id,
+        created_at=datetime.now(pytz.utc)
     )
 
     db.add(comment_model)
@@ -87,6 +92,7 @@ async def update_comment(
         )
 
     updated_comment_model.content = update_comment_request.content
+    updated_comment_model.updated_date = datetime.now(pytz.utc)
 
     db.add(updated_comment_model)
     db.commit()

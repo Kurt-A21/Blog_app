@@ -8,18 +8,12 @@ from .reactions import ReactionListResponse
 class PostCreate(BaseModel):
     tagged_users: Optional[list[str]] = []
     content: str = Field(min_length=0, max_length=280)
-    image_url: Optional[str] = Field(
-        description="Image is not needed to create a account", default=None
-    )
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class PostUpdate(BaseModel):
     content: Optional[str] = Field(min_length=0, max_length=280)
-    image_url: Optional[str] = Field(
-        description="Image is not needed to create a account", default=None
-    )
 
     model_config = ConfigDict(from_attributes=True)
 

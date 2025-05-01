@@ -1,12 +1,18 @@
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, HTTPException, Depends, Query
+import pytz
+from fastapi import APIRouter, Security, HTTPException, Depends, Query
 from pydantic import EmailStr
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+from fastapi.security import (
+    OAuth2PasswordRequestForm,
+    OAuth2PasswordBearer,
+    APIKeyHeader,
+)
+from pathlib import Path
 from starlette import status
 from db.database import db_dependency
 from db.models import Users
 from passlib.context import CryptContext
-from typing import Annotated
+from typing import Annotated, Union
 from jose import jwt, JWTError
 from schemes import TokenResponse, UserCreate, ResetPassword
 from enum import Enum
@@ -25,7 +31,8 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
 
 bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_bearer = OAuth2PasswordBearer(tokenUrl="/auth/token")
+oauth2_bearer = OAuth2PasswordBearer(tokenUrl="/auth/login")
+api_key_scheme = APIKeyHeader(name="Authorization")
 
 
 def authenticate_user(username: str, password: str, db):
@@ -47,9 +54,19 @@ def create_access_token(
     return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
+async def get_current_user(
+    token: Annotated[str, Depends(oauth2_bearer)],
+    token_from_header: Union[str, None] = Security(api_key_scheme),
+):
+    final_token = token or token_from_header
+
+    if not final_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="No token provided"
+        )
+
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(final_token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         user_id: int = payload.get("id")
         user_role: Enum = payload.get("role")
@@ -70,13 +87,26 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
 async def create_user(create_user_request: UserCreate, db: db_dependency):
     hashed_password = bcrypt_context.hash(create_user_request.password)
 
+    FILEPATH = Path(__file__).resolve().parent.parent / "static"
+    default_avatar = "avatar.png"
+    default_avatar_path = FILEPATH / default_avatar
+
+    if default_avatar_path is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Default avatar image not found",
+        )
+
+    default_avatar = create_user_request.avatar
+
     create_user_model = Users(
         username=create_user_request.username,
         email=create_user_request.email,
         password=hashed_password,
         bio=create_user_request.bio,
-        avatar=create_user_request.avatar,
+        avatar=default_avatar,
         role=create_user_request.user_role,
+        created_at=datetime.now(pytz.utc),
     )
 
     db.add(create_user_model)
@@ -127,7 +157,7 @@ async def reset_password(
     return {"detail": "Password reset successful"}
 
 
-@router.post("/token", status_code=status.HTTP_200_OK, response_model=TokenResponse)
+@router.post("/login", status_code=status.HTTP_200_OK, response_model=TokenResponse)
 async def login_for_access_token(
     db: db_dependency, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
 ):
@@ -139,6 +169,9 @@ async def login_for_access_token(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Failed Authentication"
         )
 
+    validate_user.is_active = True
+    db.commit()
+
     token = create_access_token(
         validate_user.username,
         validate_user.id,
@@ -147,3 +180,18 @@ async def login_for_access_token(
     )
 
     return TokenResponse(access_token=token, token_type="bearer")
+
+
+@router.post("/logout", status_code=status.HTTP_200_OK)
+async def logout(user: Annotated[dict, Depends(get_current_user)], db: db_dependency):
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication failed"
+        )
+
+    get_current_user = db.query(Users).filter(Users.id == user.get("id")).first()
+
+    get_current_user.is_active = False
+    get_current_user.last_seen = datetime.now(pytz.utc)
+    db.commit()
+    return {"detail": "Logged out"}

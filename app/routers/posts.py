@@ -1,5 +1,8 @@
-from fastapi import APIRouter, HTTPException, Path
+from fastapi import APIRouter, HTTPException, UploadFile, File, Path
 from starlette import status
+from PIL import Image
+import secrets
+from pathlib import Path
 from db import db_dependency, Posts, Comments, Users
 from .users import user_dependency
 from schemes import (
@@ -13,6 +16,8 @@ from schemes import (
     UserTag,
 )
 import json
+from datetime import datetime
+import pytz
 from typing import List
 from sqlalchemy.orm import joinedload
 
@@ -32,13 +37,15 @@ async def get_all_posts(db: db_dependency):
             status_code=status.HTTP_404_NOT_FOUND, detail="Posts not found"
         )
 
+    BASE_URL = "http://127.0.0.1:8000"
+
     return [
         PostResponse(
             id=post.id,
             created_by=post.created_by,
             tagged_users=post.get_tagged_user(),
             content=post.content,
-            image_url=post.image_url,
+            image_url=f"{BASE_URL}/static/{post.image_url or 'avatar.png'}",
             created_at=post.created_at,
             reaction_count=len(post.reactions),
             reactions=[
@@ -87,13 +94,15 @@ async def get_user_timeline(db: db_dependency, user_id: int = Path(gt=0)):
             status_code=status.HTTP_404_NOT_FOUND, detail="Posts not found"
         )
 
+    BASE_URL = "http://127.0.0.1:8000"
+
     return [
         PostResponse(
             id=post.id,
             created_by=post.created_by,
             tagged_users=post.get_tagged_user(),
             content=post.content,
-            image_url=post.image_url,
+            image_url=f"{BASE_URL}/static/{post.image_url or 'avatar.png'}",
             created_at=post.created_at,
             reaction_count=len(post.reactions),
             reactions=[
@@ -161,7 +170,7 @@ async def create_post(
         created_by=user.get("username"),
         owner_id=user.get("id"),
         content=post_request.content,
-        image_url=post_request.image_url,
+        created_at=datetime.now(pytz.utc),
     )
 
     post_model.set_tagged_user(tagged_users)
@@ -212,11 +221,144 @@ async def update_post(
 
     update_posts_model.content = post_request.content
     update_posts_model.image_url = post_request.image_url
+    update_posts_model.updated_date = datetime.now(pytz.utc)
 
     db.add(update_posts_model)
     db.commit()
 
     return {"detail": "Post updated successfully"}
+
+
+@router.post("/{post_id}/upload_image", status_code=status.HTTP_200_OK)
+async def upload_image_to_post(
+    user: user_dependency,
+    db: db_dependency,
+    post_id: int = Path(gt=0),
+    file: UploadFile = File(...),
+):
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
+        )
+
+    check_post = db.query(Posts).filter(Posts.id == post_id).first()
+
+    if check_post.image_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User already has an image for this post",
+        )
+
+    filename = file.filename
+    extension = filename.rsplit(".")[-1].lower()
+    if extension not in ["png", "jpg", "jpeg"]:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="File extension not allowed",
+        )
+
+    FILEPATH = Path(__file__).resolve().parent.parent / "static"
+    FILEPATH.mkdir(parents=True, exist_ok=True)
+
+    token_name = secrets.token_hex(10) + "." + extension
+    generated_name = FILEPATH / token_name
+    file_content = await file.read()
+
+    with open(generated_name, "wb") as f:
+        f.write(file_content)
+
+    img = Image.open(generated_name)
+    resized_img = img.resize(size=(200, 200))
+    resized_img.save(generated_name)
+
+    await file.close()
+
+    check_post.image_url = token_name
+    db.commit()
+
+    return {"detail": "Image on post uploaded successfully"}
+
+
+@router.put("/{post_id}/update_image", status_code=status.HTTP_200_OK)
+async def update_image_on_post(
+    user: user_dependency,
+    db: db_dependency,
+    post_id: int = Path(gt=0),
+    file: UploadFile = File(...),
+):
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
+        )
+
+    check_post = db.query(Posts).filter(Posts.id == post_id).first()
+
+    if check_post.image_url:
+        filename = file.filename
+        extension = filename.rsplit(".")[-1].lower()
+
+        if extension not in ["png", "jpg", "jpeg"]:
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                detail="File extension not allowed",
+            )
+
+        FILEPATH = Path(__file__).resolve().parent.parent / "static"
+        FILEPATH.mkdir(parents=True, exist_ok=True)
+
+        if check_post.image_url:
+            old_avatar_path = FILEPATH / check_post.image_url
+            if old_avatar_path.exists():
+                old_avatar_path.unlink()
+
+        token_name = secrets.token_hex(10) + "." + extension
+        generated_name = FILEPATH / token_name
+        file_content = await file.read()
+
+        with open(generated_name, "wb") as f:
+            f.write(file_content)
+
+        img = Image.open(generated_name)
+        resized_img = img.resize(size=(200, 200))
+        resized_img.save(generated_name)
+
+        await file.close()
+
+        check_post.image_url = token_name
+        db.commit()
+
+        return {"detail": "Image on post updated successfully"}
+
+
+@router.delete("{post_id}/remove_image", status_code=status.HTTP_200_OK)
+async def remove_image_from_post(
+    user: user_dependency, db: db_dependency, post_id: int = Path(gt=0)
+):
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
+        )
+
+    check_post = db.query(Posts).filter(Posts.id == post_id).first()
+
+    if check_post.image_url is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User does not have a image on this post",
+        )
+
+    FILEPATH = Path(__file__).resolve().parent.parent / "static"
+    old_avatar_path = FILEPATH / check_post.image_url
+
+    try:
+        old_avatar_path.unlink()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete image: {e}")
+
+    check_post.image_url = None
+    db.commit()
+
+    return {"detail": "Image removed from post"}
 
 
 @router.post(

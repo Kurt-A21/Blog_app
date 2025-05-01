@@ -1,7 +1,16 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, File, UploadFile, HTTPException, Depends
+from PIL import Image
+import secrets
+from pathlib import Path
 from starlette import status
 from db import db_dependency, Users, Follows
-from schemes import UserUpdate, UserEmailUpdate, GetUserResponse, UserVerification
+from schemes import (
+    UserUpdate,
+    UserEmailUpdate,
+    GetUserResponse,
+    UserVerification,
+    UserResponse,
+)
 from typing import Annotated, List
 from .auth import get_current_user, bcrypt_context
 from sqlalchemy.orm import joinedload
@@ -27,12 +36,14 @@ async def get_users(db: db_dependency):
             status_code=status.HTTP_404_NOT_FOUND, detail="No users found"
         )
 
+    BASE_URL = "http://127.0.0.1:8000"
+
     return [
         GetUserResponse(
             id=user.id,
             username=user.username,
             bio=user.bio,
-            avatar=user.avatar,
+            avatar=f"{BASE_URL}/static/{user.avatar or 'avatar.png'}",
             followers=len([f for f in user.followers if f.follower_user]),
             following=len([f for f in user.following if f.followed_user]),
             is_active=user.is_active,
@@ -41,7 +52,9 @@ async def get_users(db: db_dependency):
     ]
 
 
-@router.get("/current_user", status_code=status.HTTP_200_OK)
+@router.get(
+    "/current_user", status_code=status.HTTP_200_OK, response_model=UserResponse
+)
 async def get_current_user_details(user: user_dependency, db: db_dependency):
     if user is None:
         raise HTTPException(
@@ -50,7 +63,156 @@ async def get_current_user_details(user: user_dependency, db: db_dependency):
 
     get_user_model = db.query(Users).filter(Users.id == user.get("id")).first()
 
-    return get_user_model
+    BASE_URL = "http://127.0.0.1:8000"
+    avatar_url = f"{BASE_URL}/static/{get_user_model.avatar or 'avatar.png'}"
+
+    return UserResponse(
+        id=get_user_model.id,
+        account_id=get_user_model.account_id,
+        username=get_user_model.username,
+        email=get_user_model.email,
+        bio=get_user_model.bio,
+        avatar=avatar_url,
+        user_type=get_user_model.role,
+        is_active=get_user_model.is_active,
+        created_at=get_user_model.created_at,
+        last_login=get_user_model.last_seen,
+    )
+
+
+@router.post("/upload_profile_picture", status_code=status.HTTP_200_OK)
+async def upload_profile_picture(
+    user: user_dependency, db: db_dependency, file: UploadFile = File(...)
+):
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
+        )
+
+    check_user = db.query(Users).filter(Users.id == user.get("id")).first()
+
+    if check_user.avatar:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User already has a profile picture",
+        )
+
+    filename = file.filename
+    extension = filename.rsplit(".")[-1].lower()
+    if extension not in ["png", "jpg", "jpeg"]:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="File extension not allowed",
+        )
+
+    FILEPATH = Path(__file__).resolve().parent.parent / "static"
+    FILEPATH.mkdir(parents=True, exist_ok=True)
+
+    token_name = secrets.token_hex(10) + "." + extension
+    generated_name = FILEPATH / token_name
+    file_content = await file.read()
+
+    with open(generated_name, "wb") as f:
+        f.write(file_content)
+
+    img = Image.open(generated_name)
+    resized_img = img.resize(size=(200, 200))
+    resized_img.save(generated_name)
+
+    await file.close()
+
+    check_user.avatar = token_name
+    db.commit()
+
+    return {"detail": "Profile picture uploaded successfully"}
+
+
+@router.put("/update_profile_picture", status_code=status.HTTP_200_OK)
+async def update_profile_picture(
+    user: user_dependency, db: db_dependency, file: UploadFile = File(...)
+):
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
+        )
+
+    check_user = db.query(Users).filter(Users.id == user.get("id")).first()
+
+    if check_user.avatar:
+        filename = file.filename
+        extension = filename.rsplit(".")[-1].lower()
+
+        if extension not in ["png", "jpg", "jpeg"]:
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                detail="File extension not allowed",
+            )
+
+        FILEPATH = Path(__file__).resolve().parent.parent / "static"
+        FILEPATH.mkdir(parents=True, exist_ok=True)
+
+        if check_user.avatar:
+            old_avatar_path = FILEPATH / check_user.avatar
+            if old_avatar_path.exists():
+                old_avatar_path.unlink()
+
+        token_name = secrets.token_hex(10) + "." + extension
+        generated_name = FILEPATH / token_name
+        file_content = await file.read()
+
+        with open(generated_name, "wb") as f:
+            f.write(file_content)
+
+        img = Image.open(generated_name)
+        resized_img = img.resize(size=(200, 200))
+        resized_img.save(generated_name)
+
+        await file.close()
+
+        check_user.avatar = token_name
+        db.commit()
+
+        return {"detail": "Profile picture updated successfully"}
+
+
+@router.delete("/remove_profile_picture", status_code=status.HTTP_200_OK)
+async def remove_profile_picture(user: user_dependency, db: db_dependency):
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
+        )
+
+    check_user = db.query(Users).filter(Users.id == user.get("id")).first()
+
+    if check_user.avatar is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User does not have a profile picture",
+        )
+
+    FILEPATH = Path(__file__).resolve().parent.parent / "static"
+    old_avatar_path = FILEPATH / check_user.avatar
+
+    try:
+        old_avatar_path.unlink()
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to delete profile picture: {e}"
+        )
+
+    default_avatar = "avatar.png"
+    default_avatar_path = FILEPATH / default_avatar
+
+    if default_avatar_path is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Default avatar image not found",
+        )
+
+    check_user.avatar = default_avatar
+    db.commit()
+
+    return {"detail": "Profile picture removed successfully"}
 
 
 @router.put("/change_password", status_code=status.HTTP_200_OK)
@@ -92,7 +254,6 @@ async def update_user(
 
     user_details.username = update_user_request.username
     user_details.bio = update_user_request.bio
-    user_details.avatar = update_user_request.avatar
 
     db.add(user_details)
     db.commit()
@@ -117,14 +278,27 @@ async def update_user_email(
     return {"detail": "User email updated successfully"}
 
 
-@router.delete("/delete_user", status_code=status.HTTP_200_OK)
-async def delete_user(user: user_dependency, db: db_dependency):
+@router.delete("/deactivate_account", status_code=status.HTTP_200_OK)
+async def deactivate_account(user: user_dependency, db: db_dependency):
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
         )
 
-    db.query(Users).filter(Users.id == user.get("id")).delete()
-    db.commit()
+    db_user = db.query(Users).filter(Users.id == user.get("id")).first()
 
-    return {"detail": "User deleted successfully"}
+    if db_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
+
+    try:
+        db.delete(db_user)
+        db.commit()
+        return {"detail": "User and all related data deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while deactivating the account: {str(e)}",
+        )

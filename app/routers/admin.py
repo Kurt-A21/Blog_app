@@ -4,7 +4,7 @@ from db import db_dependency, Users, Posts, Comments
 from .users import user_dependency
 from constants import UserRole
 from schemes import UserResponse
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 from sqlalchemy.orm import joinedload
 
@@ -12,7 +12,7 @@ from sqlalchemy.orm import joinedload
 router = APIRouter()
 
 
-@router.get("/", status_code=status.HTTP_200_OK)
+@router.get("/", status_code=status.HTTP_200_OK, response_model=List[UserResponse])
 async def get_users_details(user: user_dependency, db: db_dependency):
     if user is None or user.get("user_role") != UserRole.ADMIN:
         raise HTTPException(
@@ -25,7 +25,24 @@ async def get_users_details(user: user_dependency, db: db_dependency):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="No users found"
         )
-    return get_user_model
+
+    BASE_URL = "http://127.0.0.1:8000"
+
+    return [
+        UserResponse(
+            id=user.id,
+            account_id=user.account_id,
+            username=user.username,
+            email=user.email,
+            bio=user.bio,
+            avatar=f"{BASE_URL}/static/{user.avatar or 'avatar.png'}",
+            user_type=user.role,
+            is_active=user.is_active,
+            created_at=user.created_at,
+            last_login=user.last_seen,
+        )
+        for user in get_user_model
+    ]
 
 
 @router.get(
@@ -63,17 +80,20 @@ async def get_user_by_id_or_accound_id(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
 
+    BASE_URL = "http://127.0.0.1:8000"
+    avatar_url = f"{BASE_URL}/static/{user.avatar or 'avatar.png'}"
+
     user_response = UserResponse(
         id=user.id,
         account_id=user.account_id,
         username=user.username,
         email=user.email,
         bio=user.bio,
-        avatar=user.avatar,
+        avatar=avatar_url,
         user_type=user.role,
         is_active=user.is_active,
         created_at=user.created_at,
-        last_login=user.last_login,
+        last_login=user.last_seen,
     )
 
     return user_response

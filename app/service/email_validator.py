@@ -8,6 +8,7 @@ load_environment()
 EMAIL = os.getenv("EMAIL_ADDRESS")
 APP_PASSWORD = os.getenv("APP_PASSWORD")
 SMTP_SERVER = os.getenv("SMTP_SERVER")
+SMTP_PORT = os.getenv("SMTP_PORT")
 
 
 def send_reset_email(to_email, username, reset_token):
@@ -35,7 +36,7 @@ def send_reset_email(to_email, username, reset_token):
     )
 
     try:
-        with smtplib.SMTP_SSL(SMTP_SERVER, 465) as smtp:
+        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as smtp:
             smtp.login(EMAIL, APP_PASSWORD)
             smtp.send_message(message)
     except Exception as e:
