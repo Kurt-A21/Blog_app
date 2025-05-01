@@ -91,7 +91,6 @@ async def create_user(create_user_request: UserCreate, db: db_dependency):
         email=create_user_request.email,
         password=hashed_password,
         bio=create_user_request.bio,
-        avatar=create_user_request.avatar,
         role=create_user_request.user_role,
         created_at=datetime.now(pytz.utc),
     )

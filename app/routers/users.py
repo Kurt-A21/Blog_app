@@ -1,12 +1,17 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, File, UploadFile, HTTPException, Depends
+from fastapi.staticfiles import StaticFiles
+from PIL import Image
+import secrets
+from pathlib import Path
 from starlette import status
-from db import db_dependency, Users, Follows, Posts, Comments, Reactions
+from db import db_dependency, Users, Follows
 from schemes import UserUpdate, UserEmailUpdate, GetUserResponse, UserVerification
 from typing import Annotated, List
 from .auth import get_current_user, bcrypt_context
 from sqlalchemy.orm import joinedload
 
 router = APIRouter()
+router.mount("/static", StaticFiles(directory="static"), name="static")
 
 user_dependency = Annotated[dict, Depends(get_current_user)]
 
@@ -32,7 +37,7 @@ async def get_users(db: db_dependency):
             id=user.id,
             username=user.username,
             bio=user.bio,
-            avatar=user.avatar,
+            avatar=user.avatar or "/static/avatar.png",
             followers=len([f for f in user.followers if f.follower_user]),
             following=len([f for f in user.following if f.followed_user]),
             is_active=user.is_active,
@@ -51,6 +56,42 @@ async def get_current_user_details(user: user_dependency, db: db_dependency):
     get_user_model = db.query(Users).filter(Users.id == user.get("id")).first()
 
     return get_user_model
+
+
+@router.post("/upload_profile_picture", status_code=status.HTTP_200_OK)
+async def upload_profile_picture(
+    user: user_dependency, db: db_dependency, file: UploadFile = File(...)
+):
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
+        )
+
+    FILEPATH = Path(__file__).resolve().parent.parent / "static"
+    FILEPATH.mkdir(parents=True, exist_ok=True)
+    filename = file.filename
+    extension = filename.rsplit(".")[-1].lower()
+
+    if extension not in ["png", "jpg", "jpeg"]:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="File extension not allowed",
+        )
+
+    token_name = secrets.token_hex(10) + "." + extension
+    generated_name = FILEPATH / token_name
+    file_content = await file.read()
+
+    with open(generated_name, "wb") as file:
+        file.write(file_content)
+
+    img = Image.open(generated_name)
+    img.resize(size=(200, 200))
+    img.save(generated_name)
+
+    file.close()
+
+    return {"detail": "Profile picture uploaded successfully"}
 
 
 @router.put("/change_password", status_code=status.HTTP_200_OK)
@@ -92,7 +133,6 @@ async def update_user(
 
     user_details.username = update_user_request.username
     user_details.bio = update_user_request.bio
-    user_details.avatar = update_user_request.avatar
 
     db.add(user_details)
     db.commit()

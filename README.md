@@ -59,7 +59,7 @@ SECRET_KEY="" # Use openssl rand -base64 48 in terminal
 ALGORITHM="HS256"
 DATABASE_URL="sqlite:///./social_media_app.db"
 EMAIL_ADDRESS="youremail@gmail.com"
-APP_PASSWORD="" # Your email app password
+APP_PASSWORD="" # Your email app password. Remove all whitepaces
 SMTP_SERVER="" # Your smtp server e.g. smtp.gmail.com
 ```
 
@@ -69,18 +69,25 @@ SMTP_SERVER="" # Your smtp server e.g. smtp.gmail.com
 uvicorn app.main:app --reload
 ```
 
+### 6. Open Swagger UI
+
+```bash
+http://127.0.0.1:8000/docs
+```
+
 ---
 
 ## 📬 API Endpoints
 
 ### 🔐 Auth
 
-| Method | Endpoint                      | Description                                        |
-| ------ | ----------------------------- | -------------------------------------------------- |
-| POST   | /auth/regsiter                | Create a user                                      |
-| POST   | /auth/token                   | Create bearer token                                |
-| POST   | /auth/forgot_password/{email} | Sends JWT reset token to email                     |
-| PUT    | /auth/reset_password/         | Validates JWT reset token to enable password reset |
+| Method | Endpoint                      | Description                                        | Auth Required |
+| ------ | ----------------------------- | -------------------------------------------------- | ------------- |
+| POST   | /auth/regsiter                | Create a user                                      |               |
+| POST   | /auth/login                   | Login and create bearer token                      |               |
+| POST   | /auth/forgot_password/{email} | Sends JWT reset token to email                     |               |
+| PUT    | /auth/reset_password/         | Validates JWT reset token to enable password reset |               |
+| POST   | /auth/logout                  | Logout account                                     | Yes(JWT)      |
 
 ### 🧙‍♂️ Admin Routes (Role: Admin)
 
@@ -94,14 +101,15 @@ uvicorn app.main:app --reload
 
 ### 🧑 User Routes
 
-| Method | Endpoint               | Description                                  | Auth Required |
-| ------ | ---------------------- | -------------------------------------------- | ------------- |
-| GET    | /users                 | Get all users, their followers and following | No            |
-| GET    | /users/current_user    | Get current user details                     | Yes(JWT)      |
-| PUT    | /users/change_password | Update current user password                 | Yes(JWT)      |
-| PUT    | /users/update_user     | Update current user details                  | Yes(JWT)      |
-| PUT    | /users/update_email    | Update current user details                  | Yes(JWT)      |
-| DELETE | /users/delete_user     | Delete current user                          | Yes(JWT)      |
+| Method | Endpoint                      | Description                                  | Auth Required |
+| ------ | ----------------------------- | -------------------------------------------- | ------------- |
+| GET    | /users                        | Get all users, their followers and following | No            |
+| GET    | /users/current_user           | Get current user details                     | Yes(JWT)      |
+| PUT    | /users/change_password        | Update current user password                 | Yes(JWT)      |
+| PUT    | /users/update_user            | Update current user details                  | Yes(JWT)      |
+| PUT    | /users/update_email           | Update current user details                  | Yes(JWT)      |
+| POST   | /users/upload_profile_picture | Upload a profile picture                     | Yes(JWT)      |
+| DELETE | /users/deactivate_account     | Delete account and all related user data     | Yes(JWT)      |
 
 ### 👥 Follow Routes
 
@@ -118,8 +126,9 @@ uvicorn app.main:app --reload
 | ------ | ---------------------------- | ------------------------------------------------------------------------------------------ | ------------- |
 | GET    | /posts                       | Get all posts by users, along with their comments and reactions on both posts and comments | No            |
 | GET    | /posts/user/{user_id}        | Get a specific user's timeline of posts                                                    | No            |
-| POST   | /posts/create                | Create a post                                                                              | Yes(JWT)      |
+| POST   | /posts/create                | Create a post, tag users                                                                   | Yes(JWT)      |
 | PUT    | /posts/{post_id}/update_post | Update a post                                                                              | Yes(JWT)      |
+| DELETE | /posts/{post_id}/delete_tag  | Remove user tags from a post                                                               | Yes(JWT)      |
 | DELETE | /posts/{post_id}/delete_post | Delete a post                                                                              | Yes(JWT)      |
 
 ### 💬 Comment Routes
