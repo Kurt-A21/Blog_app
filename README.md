@@ -61,6 +61,7 @@ DATABASE_URL="sqlite:///./social_media_app.db"
 EMAIL_ADDRESS="youremail@gmail.com"
 APP_PASSWORD="" # Your email app password. Remove all whitepaces
 SMTP_SERVER="" # Your smtp server e.g. smtp.gmail.com
+SMTP_PORT= #e.g 465
 ```
 
 ### 5. Run App
@@ -109,6 +110,8 @@ http://127.0.0.1:8000/docs
 | PUT    | /users/update_user            | Update current user details                  | Yes(JWT)      |
 | PUT    | /users/update_email           | Update current user details                  | Yes(JWT)      |
 | POST   | /users/upload_profile_picture | Upload a profile picture                     | Yes(JWT)      |
+| PUT    | /users/update_profile_picture | Update profile picture                       | Yes(JWT)      |
+| DELETE | /users/remove_profile_picture | Remove profile picture                       | Yes(JWT)      |
 | DELETE | /users/deactivate_account     | Delete account and all related user data     | Yes(JWT)      |
 
 ### 👥 Follow Routes
@@ -122,14 +125,17 @@ http://127.0.0.1:8000/docs
 
 ### 📸 Post Routes
 
-| Method | Endpoint                     | Description                                                                                | Auth Required |
-| ------ | ---------------------------- | ------------------------------------------------------------------------------------------ | ------------- |
-| GET    | /posts                       | Get all posts by users, along with their comments and reactions on both posts and comments | No            |
-| GET    | /posts/user/{user_id}        | Get a specific user's timeline of posts                                                    | No            |
-| POST   | /posts/create                | Create a post, tag users                                                                   | Yes(JWT)      |
-| PUT    | /posts/{post_id}/update_post | Update a post                                                                              | Yes(JWT)      |
-| DELETE | /posts/{post_id}/delete_tag  | Remove user tags from a post                                                               | Yes(JWT)      |
-| DELETE | /posts/{post_id}/delete_post | Delete a post                                                                              | Yes(JWT)      |
+| Method | Endpoint                      | Description                                                                                | Auth Required |
+| ------ | ----------------------------- | ------------------------------------------------------------------------------------------ | ------------- |
+| GET    | /posts                        | Get all posts by users, along with their comments and reactions on both posts and comments | No            |
+| GET    | /posts/user/{user_id}         | Get a specific user's timeline of posts                                                    | No            |
+| POST   | /posts/create                 | Create a post, tag users                                                                   | Yes(JWT)      |
+| PUT    | /posts/{post_id}/update_post  | Update a post                                                                              | Yes(JWT)      |
+| DELETE | /posts/{post_id}/delete_tag   | Remove user tags from a post                                                               | Yes(JWT)      |
+| DELETE | /posts/{post_id}/delete_post  | Delete a post                                                                              | Yes(JWT)      |
+| POST   | /posts/{post_id}/upload_image | Upload a image to a post                                                                   | Yes(JWT)      |
+| DELETE | /posts/{post_id}/update_image | Update image on a post                                                                     | Yes(JWT)      |
+| DELETE | /posts/{post_id}/remove_image | Remove image from a post                                                                   | Yes(JWT)      |
 
 ### 💬 Comment Routes
 

@@ -18,7 +18,7 @@ from schemes import (
 import json
 from datetime import datetime
 import pytz
-from typing import List, Optional
+from typing import List
 from sqlalchemy.orm import joinedload
 
 router = APIRouter()
@@ -37,13 +37,15 @@ async def get_all_posts(db: db_dependency):
             status_code=status.HTTP_404_NOT_FOUND, detail="Posts not found"
         )
 
+    BASE_URL = "http://127.0.0.1:8000"
+
     return [
         PostResponse(
             id=post.id,
             created_by=post.created_by,
             tagged_users=post.get_tagged_user(),
             content=post.content,
-            image_url=post.image_url,
+            image_url=f"{BASE_URL}/static/{post.image_url or 'avatar.png'}",
             created_at=post.created_at,
             reaction_count=len(post.reactions),
             reactions=[
@@ -92,13 +94,15 @@ async def get_user_timeline(db: db_dependency, user_id: int = Path(gt=0)):
             status_code=status.HTTP_404_NOT_FOUND, detail="Posts not found"
         )
 
+    BASE_URL = "http://127.0.0.1:8000"
+
     return [
         PostResponse(
             id=post.id,
             created_by=post.created_by,
             tagged_users=post.get_tagged_user(),
             content=post.content,
-            image_url=post.image_url,
+            image_url=f"{BASE_URL}/static/{post.image_url or 'avatar.png'}",
             created_at=post.created_at,
             reaction_count=len(post.reactions),
             reactions=[
@@ -226,7 +230,7 @@ async def update_post(
 
 
 @router.post("/{post_id}/upload_image", status_code=status.HTTP_200_OK)
-async def upload_image_on_post(
+async def upload_image_to_post(
     user: user_dependency,
     db: db_dependency,
     post_id: int = Path(gt=0),
@@ -324,6 +328,37 @@ async def update_image_on_post(
         db.commit()
 
         return {"detail": "Image on post updated successfully"}
+
+
+@router.delete("{post_id}/remove_image", status_code=status.HTTP_200_OK)
+async def remove_image_from_post(
+    user: user_dependency, db: db_dependency, post_id: int = Path(gt=0)
+):
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
+        )
+
+    check_post = db.query(Posts).filter(Posts.id == post_id).first()
+
+    if check_post.image_url is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User does not have a image on this post",
+        )
+
+    FILEPATH = Path(__file__).resolve().parent.parent / "static"
+    old_avatar_path = FILEPATH / check_post.image_url
+
+    try:
+        old_avatar_path.unlink()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete image: {e}")
+
+    check_post.image_url = None
+    db.commit()
+
+    return {"detail": "Image removed from post"}
 
 
 @router.post(
