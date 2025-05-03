@@ -112,3 +112,37 @@ async def update_reply(
         reply_content=query_reply.content,
         updated_date=datetime.now(pytz.utc),
     )
+
+
+@router.delete(
+    "/{post_id}/comment/{comment_id}/reply/{reply_id}", status_code=status.HTTP_200_OK
+)
+async def delete_reply(
+    user: user_dependency,
+    db: db_dependency,
+    post_id: int = Path(gt=0),
+    comment_id: int = Path(gt=0),
+    reply_id: int = Path(gt=0),
+):
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
+        )
+
+    query_reply = (
+        db.query(CommentReply)
+        .filter(
+            CommentReply.id == reply_id,
+            CommentReply.post_id == post_id,
+            CommentReply.comment_id == comment_id,
+        )
+        .first()
+    )
+
+    if not query_reply:
+        raise HTTPException(status_code=404, detail="Reply not found")
+
+    db.delete(query_reply)
+    db.commit()
+
+    return {"detail": "Reply deleted successfully"}

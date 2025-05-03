@@ -33,19 +33,31 @@ class Users(Base):
     created_at = Column(DateTime, nullable=False)
     last_seen = Column(DateTime, nullable=True)
 
-    posts = relationship("Posts", back_populates="user")
-    comments = relationship("Comments", back_populates="user")
-    reply = relationship("CommentReply", back_populates="user")
-    reactions = relationship("Reactions", back_populates="user")
-    followers = relationship("Follows", foreign_keys="[Follows.user_id]")
-    following = relationship("Follows", foreign_keys="[Follows.follower_id]")
+    posts = relationship("Posts", back_populates="user", cascade="all, delete-orphan")
+    comments = relationship(
+        "Comments", back_populates="user", cascade="all, delete-orphan"
+    )
+    reply = relationship(
+        "CommentReply", back_populates="user", cascade="all, delete-orphan"
+    )
+    reactions = relationship(
+        "Reactions", back_populates="user", cascade="all, delete-orphan"
+    )
+    followers = relationship(
+        "Follows", foreign_keys="[Follows.user_id]", cascade="all, delete-orphan"
+    )
+    following = relationship(
+        "Follows", foreign_keys="[Follows.follower_id]", cascade="all, delete-orphan"
+    )
 
 
 class Posts(Base):
     __tablename__ = "posts"
 
     id = Column(Integer, primary_key=True, index=True)
-    owner_id = Column(Integer, ForeignKey("users.id"))
+    owner_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
     tagged_user = Column(String)
     created_by = Column(String, nullable=False)
     content = Column(String, nullable=False)
@@ -54,9 +66,15 @@ class Posts(Base):
     updated_date = Column(DateTime, nullable=True)
 
     user = relationship("Users", back_populates="posts")
-    comments = relationship("Comments", back_populates="post")
-    reply = relationship("CommentReply", back_populates="post")
-    reactions = relationship("Reactions", back_populates="post")
+    comments = relationship(
+        "Comments", back_populates="post", cascade="all, delete-orphan"
+    )
+    reply = relationship(
+        "CommentReply", back_populates="post", cascade="all, delete-orphan"
+    )
+    reactions = relationship(
+        "Reactions", back_populates="post", cascade="all, delete-orphan"
+    )
 
     def set_tagged_user(self, users: list):
         self.tagged_user = json.dumps(users)
@@ -82,25 +100,39 @@ class Comments(Base):
     __tablename__ = "comments"
 
     id = Column(Integer, primary_key=True, index=True)
-    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    post_id = Column(Integer, ForeignKey("posts.id"), nullable=False)
+    owner_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    post_id = Column(
+        Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False
+    )
     content = Column(String, nullable=False)
     created_at = Column(DateTime, nullable=False)
     updated_date = Column(DateTime, nullable=True)
 
     user = relationship("Users", back_populates="comments")
     post = relationship("Posts", back_populates="comments")
-    reply = relationship("CommentReply", back_populates="comment")
-    reactions = relationship("Reactions", back_populates="comments")
+    replies = relationship(
+        "CommentReply", back_populates="comment", cascade="all, delete-orphan"
+    )
+    reactions = relationship(
+        "Reactions", back_populates="comments", cascade="all, delete-orphan"
+    )
 
 
 class CommentReply(Base):
     __tablename__ = "comment_replies"
 
     id = Column(Integer, primary_key=True, index=True)
-    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    post_id = Column(Integer, ForeignKey("posts.id"), nullable=False)
-    comment_id = Column(Integer, ForeignKey("comments.id"), nullable=False)
+    owner_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    post_id = Column(
+        Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False
+    )
+    comment_id = Column(
+        Integer, ForeignKey("comments.id", ondelete="CASCADE"), nullable=False
+    )
     content = Column(String, nullable=False)
     created_at = Column(DateTime, nullable=False)
     updated_date = Column(DateTime, nullable=True)
@@ -108,17 +140,21 @@ class CommentReply(Base):
     user = relationship("Users", back_populates="reply")
     post = relationship("Posts", back_populates="reply")
     comment = relationship("Comments", back_populates="reply")
-    reactions = relationship("Reactions", back_populates="reply")
+    reactions = relationship(
+        "Reactions", back_populates="reply", cascade="all, delete-orphan"
+    )
 
 
 class Reactions(Base):
     __tablename__ = "reactions"
 
     id = Column(Integer, primary_key=True, index=True)
-    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    post_id = Column(Integer, ForeignKey("posts.id"))
-    comment_id = Column(Integer, ForeignKey("comments.id"))
-    reply_id = Column(Integer, ForeignKey("comment_replies.id"))
+    owner_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"))
+    comment_id = Column(Integer, ForeignKey("comments.id", ondelete="CASCADE"))
+    reply_id = Column(Integer, ForeignKey("comment_replies.id", ondelete="CASCADE"))
     reaction_type = Column(SQLAEnum(ReactionType), nullable=False)
 
     user = relationship("Users", back_populates="reactions")
