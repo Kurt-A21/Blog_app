@@ -156,6 +156,25 @@ async def get_user_timeline(db: db_dependency, user_id: int = Path(gt=0)):
                 )
                 for comment in post.comments
             ],
+            reply_count=len(post.reply),
+            reply=[
+                GetReplies(
+                    id=reply.id,
+                    created_by=reply.user.username,
+                    reply_content=reply.content,
+                    created_at=reply.created_at,
+                    reaction_count=len(post.reactions),
+                    reactions=[
+                        GetReactions(
+                            id=reactions.id,
+                            owner=reactions.user.username,
+                            reaction_type=reactions.reaction_type,
+                        )
+                        for reactions in reply.reactions
+                    ],
+                )
+                for reply in post.reply
+            ],
         )
         for post in get_posts_model
     ]

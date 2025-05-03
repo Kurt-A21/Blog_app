@@ -24,7 +24,7 @@ class CommentCreate(BaseModel):
 class CommentUpdateResponse(BaseModel):
     detail: str
     comment_content: str = Field(min_length=0, max_length=280)
-    created_at: datetime
+    updated_date: datetime
 
     model_config = ConfigDict(from_attributes=True)
 

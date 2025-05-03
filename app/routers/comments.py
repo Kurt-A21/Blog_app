@@ -101,7 +101,7 @@ async def update_comment(
     return CommentUpdateResponse(
         detail="Comment updated successfully",
         comment_content=updated_comment_model.content,
-        created_at=updated_comment_model.created_at,
+        updated_date=datetime.now(pytz.utc),
     )
 
 
