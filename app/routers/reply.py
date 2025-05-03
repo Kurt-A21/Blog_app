@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Path
 from starlette import status
 from datetime import datetime
 import pytz
-from db import db_dependency, Comments, Posts
+from db import db_dependency, Comments, Posts, CommentReply
 from .users import user_dependency
 from schemes import GetReplies, ReplyCreate, ReplyResponse, ReplyUpdateResponse
 from sqlalchemy.orm import joinedload
@@ -14,7 +14,47 @@ router = APIRouter()
 async def create_reply(
     user: user_dependency,
     db: db_dependency,
+    reply_request: ReplyCreate,
     post_id: int = Path(gt=0),
     comment_id: int = Path(gt=0),
 ):
-    pass
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
+        )
+
+    query_post = db.query(Posts).filter(Posts.id == post_id).first()
+
+    if query_post is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
+        )
+
+    query_comment = db.query(Comments).filter(Comments.id == comment_id).first()
+
+    if query_comment is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
+        )
+
+    reply_model = CommentReply(
+        owner_id=user.get("id"),
+        post_id=post_id,
+        comment_id=comment_id,
+        content=reply_request.reply_content,
+        created_at=datetime.now(pytz.utc),
+    )
+
+    db.add(reply_model)
+    db.commit()
+
+    return ReplyResponse(
+        detail="Reply added successfully",
+        post_id=query_post.id,
+        post_content=query_post.content,
+        comment_id=query_comment.id,
+        comment_content=query_comment.content,
+        reply_id=reply_model.id,
+        reply_content=reply_model.content,
+        created_at=datetime.now(pytz.utc),
+    )

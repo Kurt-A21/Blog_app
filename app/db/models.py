@@ -35,6 +35,7 @@ class Users(Base):
 
     posts = relationship("Posts", back_populates="user")
     comments = relationship("Comments", back_populates="user")
+    reply = relationship("CommentReply", back_populates="user")
     reactions = relationship("Reactions", back_populates="user")
     followers = relationship("Follows", foreign_keys="[Follows.user_id]")
     following = relationship("Follows", foreign_keys="[Follows.follower_id]")
@@ -54,6 +55,7 @@ class Posts(Base):
 
     user = relationship("Users", back_populates="posts")
     comments = relationship("Comments", back_populates="post")
+    reply = relationship("CommentReply", back_populates="post")
     reactions = relationship("Reactions", back_populates="post")
 
     def set_tagged_user(self, users: list):
@@ -88,7 +90,25 @@ class Comments(Base):
 
     user = relationship("Users", back_populates="comments")
     post = relationship("Posts", back_populates="comments")
+    reply = relationship("CommentReply", back_populates="comment")
     reactions = relationship("Reactions", back_populates="comments")
+
+
+class CommentReply(Base):
+    __tablename__ = "comment_replies"
+
+    id = Column(Integer, primary_key=True, index=True)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    post_id = Column(Integer, ForeignKey("posts.id"), nullable=False)
+    comment_id = Column(Integer, ForeignKey("comments.id"), nullable=False)
+    content = Column(String, nullable=False)
+    created_at = Column(DateTime, nullable=False)
+    updated_date = Column(DateTime, nullable=True)
+
+    user = relationship("Users", back_populates="reply")
+    post = relationship("Posts", back_populates="reply")
+    comment = relationship("Comments", back_populates="reply")
+    reactions = relationship("Reactions", back_populates="reply")
 
 
 class Reactions(Base):
@@ -98,11 +118,13 @@ class Reactions(Base):
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     post_id = Column(Integer, ForeignKey("posts.id"))
     comment_id = Column(Integer, ForeignKey("comments.id"))
+    reply_id = Column(Integer, ForeignKey("comment_replies.id"))
     reaction_type = Column(SQLAEnum(ReactionType), nullable=False)
 
     user = relationship("Users", back_populates="reactions")
     post = relationship("Posts", back_populates="reactions")
     comments = relationship("Comments", back_populates="reactions")
+    reply = relationship("CommentReply", back_populates="reactions")
 
 
 class Follows(Base):

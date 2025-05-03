@@ -45,9 +45,10 @@ async def create_comment(
 
     return CommentResponse(
         detail="Comment added successully",
-        comment_id=query_model.owner_id,
+        post_id=query_model.id,
         post_content=query_model.content,
-        content=comment_model.content,
+        comment_id=comment_model.id,
+        comment_content=comment_model.content,
         created_at=comment_model.created_at,
     )
 

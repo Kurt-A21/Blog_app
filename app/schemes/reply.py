@@ -31,6 +31,7 @@ class ReplyUpdateResponse(BaseModel):
 
 class ReplyResponse(BaseModel):
     detail: str
+    post_id: int
     post_content: str
     comment_id: int
     comment_content: str = Field(min_lengsth=0, max_length=280)
