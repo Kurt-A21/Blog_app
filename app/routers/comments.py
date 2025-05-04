@@ -4,7 +4,7 @@ from datetime import datetime
 import pytz
 from db import db_dependency, Comments, Posts
 from .users import user_dependency
-from schemes import CommentCreate, CommentResponse, CommentUpdate, GetComments
+from schemes import CommentCreate, CommentResponse, CommentUpdateResponse, GetComments
 from sqlalchemy.orm import joinedload
 
 router = APIRouter()
@@ -45,9 +45,10 @@ async def create_comment(
 
     return CommentResponse(
         detail="Comment added successully",
-        comment_id=query_model.owner_id,
+        post_id=query_model.id,
         post_content=query_model.content,
-        content=comment_model.content,
+        comment_id=comment_model.id,
+        comment_content=comment_model.content,
         created_at=comment_model.created_at,
     )
 
@@ -55,7 +56,7 @@ async def create_comment(
 @router.put(
     "/{post_id}/comment/{comment_id}",
     status_code=status.HTTP_200_OK,
-    response_model=CommentUpdate,
+    response_model=CommentUpdateResponse,
 )
 async def update_comment(
     user: user_dependency,
@@ -91,16 +92,16 @@ async def update_comment(
             status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
         )
 
-    updated_comment_model.content = update_comment_request.content
+    updated_comment_model.content = update_comment_request.comment_content
     updated_comment_model.updated_date = datetime.now(pytz.utc)
 
     db.add(updated_comment_model)
     db.commit()
 
-    return CommentUpdate(
+    return CommentUpdateResponse(
         detail="Comment updated successfully",
-        content=updated_comment_model.content,
-        created_at=updated_comment_model.created_at,
+        comment_content=updated_comment_model.content,
+        updated_date=datetime.now(pytz.utc),
     )
 
 
@@ -123,12 +124,16 @@ async def delete_comment(
         .first()
     )
 
-    for comment in query_post_model.comments:
-        if comment.id == comment_id:
-            db.query(Comments).filter(Comments.id == comment_id).delete()
-            db.commit()
-            return {"detail": "Comment deleted succcessfully"}
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
-            )
+    query_comment = next(
+        (comment for comment in query_post_model.comments if comment.id == comment_id),
+        None,
+    )
+
+    if not query_comment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
+        )
+
+    db.delete(query_comment)
+    db.commit()
+    return {"detail": "Comment deleted succcessfully"}

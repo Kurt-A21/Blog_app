@@ -14,6 +14,7 @@ from schemes import (
     GetComments,
     GetReactions,
     UserTag,
+    GetReplies,
 )
 import json
 from datetime import datetime
@@ -28,7 +29,10 @@ router = APIRouter()
 async def get_all_posts(db: db_dependency):
     get_posts_model = (
         db.query(Posts)
-        .options(joinedload(Posts.comments).joinedload(Comments.user))
+        .options(
+            joinedload(Posts.comments).joinedload(Comments.user),
+            joinedload(Posts.reply),
+        )
         .all()
     )
 
@@ -44,7 +48,7 @@ async def get_all_posts(db: db_dependency):
             id=post.id,
             created_by=post.created_by,
             tagged_users=post.get_tagged_user(),
-            content=post.content,
+            post_content=post.content,
             image_url=f"{BASE_URL}/static/{post.image_url or 'avatar.png'}",
             created_at=post.created_at,
             reaction_count=len(post.reactions),
@@ -62,7 +66,7 @@ async def get_all_posts(db: db_dependency):
                 GetComments(
                     id=comment.id,
                     created_by=comment.user.username,
-                    content=comment.content,
+                    comment_content=comment.content,
                     created_at=comment.created_at,
                     reaction_count=len(post.reactions),
                     reactions=[
@@ -75,6 +79,25 @@ async def get_all_posts(db: db_dependency):
                     ],
                 )
                 for comment in post.comments
+            ],
+            reply_count=len(post.reply),
+            reply=[
+                GetReplies(
+                    id=reply.id,
+                    created_by=reply.user.username,
+                    reply_content=reply.content,
+                    created_at=reply.created_at,
+                    reaction_count=len(post.reactions),
+                    reactions=[
+                        GetReactions(
+                            id=reactions.id,
+                            owner=reactions.user.username,
+                            reaction_type=reactions.reaction_type,
+                        )
+                        for reactions in reply.reactions
+                    ],
+                )
+                for reply in post.reply
             ],
         )
         for post in get_posts_model
@@ -101,7 +124,7 @@ async def get_user_timeline(db: db_dependency, user_id: int = Path(gt=0)):
             id=post.id,
             created_by=post.created_by,
             tagged_users=post.get_tagged_user(),
-            content=post.content,
+            post_content=post.content,
             image_url=f"{BASE_URL}/static/{post.image_url or 'avatar.png'}",
             created_at=post.created_at,
             reaction_count=len(post.reactions),
@@ -132,6 +155,25 @@ async def get_user_timeline(db: db_dependency, user_id: int = Path(gt=0)):
                     ],
                 )
                 for comment in post.comments
+            ],
+            reply_count=len(post.reply),
+            reply=[
+                GetReplies(
+                    id=reply.id,
+                    created_by=reply.user.username,
+                    reply_content=reply.content,
+                    created_at=reply.created_at,
+                    reaction_count=len(post.reactions),
+                    reactions=[
+                        GetReactions(
+                            id=reactions.id,
+                            owner=reactions.user.username,
+                            reaction_type=reactions.reaction_type,
+                        )
+                        for reactions in reply.reactions
+                    ],
+                )
+                for reply in post.reply
             ],
         )
         for post in get_posts_model
@@ -169,7 +211,7 @@ async def create_post(
     post_model = Posts(
         created_by=user.get("username"),
         owner_id=user.get("id"),
-        content=post_request.content,
+        content=post_request.post_content,
         created_at=datetime.now(pytz.utc),
     )
 
@@ -185,7 +227,7 @@ async def create_post(
             id=user.get("id"),
             created_by=user.get("username"),
             tagged_users=post_model.get_tagged_user(),
-            content=post_model.content,
+            post_content=post_model.content,
             image_url=post_model.image_url,
             created_at=post_model.created_at,
         ),
@@ -219,8 +261,7 @@ async def update_post(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post to update not found"
         )
 
-    update_posts_model.content = post_request.content
-    update_posts_model.image_url = post_request.image_url
+    update_posts_model.content = post_request.post_content
     update_posts_model.updated_date = datetime.now(pytz.utc)
 
     db.add(update_posts_model)

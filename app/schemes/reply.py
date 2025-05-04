@@ -4,10 +4,10 @@ from typing import Optional, List
 from .reactions import GetReactions
 
 
-class GetComments(BaseModel):
+class GetReplies(BaseModel):
     id: int
     created_by: str
-    comment_content: str = Field(min_length=0, max_length=280)
+    reply_content: str = Field(min_length=0, max_length=280)
     created_at: datetime
     reaction_count: Optional[int]
     reactions: Optional[List[GetReactions]] = []
@@ -15,26 +15,28 @@ class GetComments(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class CommentCreate(BaseModel):
-    content: str = Field(min_length=0, max_length=280)
+class ReplyCreate(BaseModel):
+    reply_content: str
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class CommentUpdateResponse(BaseModel):
+class ReplyUpdateResponse(BaseModel):
     detail: str
-    comment_content: str = Field(min_length=0, max_length=280)
+    reply_content: str = Field(min_length=0, max_length=280)
     updated_date: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class CommentResponse(BaseModel):
+class ReplyResponse(BaseModel):
     detail: str
     post_id: int
     post_content: str
     comment_id: int
     comment_content: str = Field(min_lengsth=0, max_length=280)
+    reply_id: int
+    reply_content: str = Field(min_length=0, max_length=280)
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

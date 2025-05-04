@@ -145,16 +145,27 @@ http://127.0.0.1:8000/docs
 | PUT    | /posts/{post_id}/comment/{comment_id} | Update a comment  | Yes(JWT)      |
 | DELETE | /posts/{post_id}/comment/{comment_id} | Delete a comment  | Yes(JWT)      |
 
+### 💬 Comment Reply Routes
+
+| Method | Endpoint                                               | Description        | Auth Required |
+| ------ | ------------------------------------------------------ | ------------------ | ------------- |
+| POST   | /posts/{post_id}comment/{comment_id}/reply             | Reply on a comment | Yes(JWT)      |
+| PUT    | /posts/{post_id}/comment/{comment_id}/reply/{reply_id} | Update a reply     | Yes(JWT)      |
+| DELETE | /posts/{post_id}/comment/{comment_id}/reply/{reply_id} | Delete a reply     | Yes(JWT)      |
+
 ### 👍 Reaction Routes
 
-| Method | Endpoint                                                     | Description                    | Auth Required |
-| ------ | ------------------------------------------------------------ | ------------------------------ | ------------- |
-| POST   | /posts/{post_id}/reaction                                    | React on a post                | Yes(JWT)      |
-| POST   | /posts/{post_id}/comment/{comment_id}/reaction               | React on a comment             | Yes(JWT)      |
-| PUT    | /posts/{post_id}/reaction/{reaction_id}                      | Update a reaction on a post    | Yes(JWT)      |
-| PUT    | /posts/{post_id}/comment/{comment_id}/reaction/{reaction_id} | Update a reaction on a comment | Yes(JWT)      |
-| DELETE | /posts/{post_id}/reaction/{reaction_id}                      | Undo a reaction on a post      | Yes(JWT)      |
-| DELETE | /posts/{post_id}/comment/{comment_id}/reaction/{reaction_id} | Undo a reaction on a comment   | Yes(JWT)      |
+| Method | Endpoint                                                                      | Description                    | Auth Required |
+| ------ | ----------------------------------------------------------------------------- | ------------------------------ | ------------- |
+| POST   | /posts/{post_id}/reaction                                                     | React on a post                | Yes(JWT)      |
+| POST   | /posts/{post_id}/comment/{comment_id}/reaction                                | React on a comment             | Yes(JWT)      |
+| POST   | /posts/{post_id}/comment/{comment_id}/reply/{reply_id}/reaction               | React on a reply               | Yes(JWT)      |
+| PUT    | /posts/{post_id}/reaction/{reaction_id}                                       | Update a reaction on a post    | Yes(JWT)      |
+| PUT    | /posts/{post_id}/comment/{comment_id}/reaction/{reaction_id}                  | Update a reaction on a comment | Yes(JWT)      |
+| PUT    | /posts/{post_id}/comment/{comment_id}/reply/{reply_id}/reaction/{reaction_id} | Update a reaction on a reply   | Yes(JWT)      |
+| DELETE | /posts/{post_id}/reaction/{reaction_id}                                       | Undo a reaction on a post      | Yes(JWT)      |
+| DELETE | /posts/{post_id}/comment/{comment_id}/reaction/{reaction_id}                  | Undo a reaction on a comment   | Yes(JWT)      |
+| DELETE | /posts/{post_id}/comment/{comment_id}/reply/{reply_id}/reaction/{reaction_id} | Undo a reaction on a reply     | Yes(JWT)      |
 
 ## 📄 License
 
