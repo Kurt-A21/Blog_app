@@ -124,12 +124,16 @@ async def delete_comment(
         .first()
     )
 
-    for comment in query_post_model.comments:
-        if comment.id == comment_id:
-            db.query(Comments).filter(Comments.id == comment_id).delete()
-            db.commit()
-            return {"detail": "Comment deleted succcessfully"}
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
-            )
+    query_comment = next(
+        (comment for comment in query_post_model.comments if comment.id == comment_id),
+        None,
+    )
+
+    if not query_comment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
+        )
+
+    db.delete(query_comment)
+    db.commit()
+    return {"detail": "Comment deleted succcessfully"}

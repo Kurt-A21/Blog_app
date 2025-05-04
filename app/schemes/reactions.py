@@ -25,7 +25,8 @@ class GetReactions(BaseModel):
 class ReactionResponse(BaseModel):
     detail: str
     post_content: str
-    comment_content: Optional[str]
+    comment_content: Optional[str] = None
+    reply_content: Optional[str] = None
     reaction_type: ReactionType
 
     model_config = ConfigDict(from_attributes=True)

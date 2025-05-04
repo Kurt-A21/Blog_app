@@ -139,7 +139,7 @@ class CommentReply(Base):
 
     user = relationship("Users", back_populates="reply")
     post = relationship("Posts", back_populates="reply")
-    comment = relationship("Comments", back_populates="reply")
+    comment = relationship("Comments", back_populates="replies")
     reactions = relationship(
         "Reactions", back_populates="reply", cascade="all, delete-orphan"
     )
