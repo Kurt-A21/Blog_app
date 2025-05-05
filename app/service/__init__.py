@@ -1,1 +1,0 @@
-from .email_validator import send_reset_email

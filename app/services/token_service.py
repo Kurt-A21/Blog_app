@@ -6,7 +6,7 @@ from starlette import status
 from pydantic import EmailStr
 from typing import Annotated
 import os
-from .env_loader import load_environment
+from utils import load_environment
 
 load_environment()
 
