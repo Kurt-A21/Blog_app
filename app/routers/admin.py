@@ -19,9 +19,9 @@ async def get_users_details(user: user_dependency, db: db_dependency):
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
         )
 
-    get_user_model = db.query(Users).all()
+    query_users = db.query(Users).all()
 
-    if not get_user_model:
+    if not query_users:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="No users found"
         )
@@ -41,7 +41,7 @@ async def get_users_details(user: user_dependency, db: db_dependency):
             created_at=user.created_at,
             last_login=user.last_seen,
         )
-        for user in get_user_model
+        for user in query_users
     ]
 
 
@@ -108,14 +108,14 @@ async def delete_user(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
         )
 
-    delete_user_model = db.query(Users).filter(Users.id == user_id).first()
+    query_user = db.query(Users).filter(Users.id == user_id).first()
 
-    if delete_user_model is None:
+    if query_user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
 
-    db.query(Users).filter(Users.id == user_id).delete()
+    db.delete(query_user)
     db.commit()
     return {"detail": "User deleted successfully"}
 
@@ -129,14 +129,14 @@ async def delete_post(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
         )
 
-    query_model = db.query(Posts).filter(Posts.id == post_id).first()
+    query_post = db.query(Posts).filter(Posts.id == post_id).first()
 
-    if query_model is None:
+    if query_post is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
         )
 
-    db.query(Posts).filter(Posts.id == post_id).delete()
+    db.delete(query_post)
     db.commit()
 
     return {"detail": "Post deleted successfully"}
@@ -154,14 +154,14 @@ async def delete_comment(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
         )
 
-    query_post_model = (
+    query_post = (
         db.query(Posts)
         .options(joinedload(Posts.comments))
         .filter(Posts.id == post_id)
         .first()
     )
 
-    for comment in query_post_model.comments:
+    for comment in query_post.comments:
         if comment.id == comment_id:
             db.query(Comments).filter(Comments.id == comment_id).delete()
             db.commit()

@@ -101,6 +101,12 @@ async def update_reply(
             status_code=status.HTTP_404_NOT_FOUND, detail="Reply not found"
         )
 
+    if query_reply.owner_id != user.get("id"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to update this reply",
+        )
+
     query_reply.content = update_reply_request.reply_content
     query_reply.updated_date = datetime.now(pytz.utc)
 
@@ -141,6 +147,12 @@ async def delete_reply(
 
     if not query_reply:
         raise HTTPException(status_code=404, detail="Reply not found")
+
+    if query_reply.owner_id != user.get("id"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to delete this reply",
+        )
 
     db.delete(query_reply)
     db.commit()

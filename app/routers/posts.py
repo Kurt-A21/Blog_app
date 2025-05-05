@@ -27,7 +27,7 @@ router = APIRouter()
 
 @router.get("", status_code=status.HTTP_200_OK, response_model=List[PostResponse])
 async def get_all_posts(db: db_dependency):
-    get_posts_model = (
+    query_posts = (
         db.query(Posts)
         .options(
             joinedload(Posts.comments).joinedload(Comments.user),
@@ -36,7 +36,7 @@ async def get_all_posts(db: db_dependency):
         .all()
     )
 
-    if not get_posts_model:
+    if not query_posts:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Posts not found"
         )
@@ -100,7 +100,7 @@ async def get_all_posts(db: db_dependency):
                 for reply in post.reply
             ],
         )
-        for post in get_posts_model
+        for post in query_posts
     ]
 
 
@@ -110,9 +110,9 @@ async def get_all_posts(db: db_dependency):
     response_model=List[PostResponse],
 )
 async def get_user_timeline(db: db_dependency, user_id: int = Path(gt=0)):
-    get_posts_model = db.query(Posts).filter(Posts.owner_id == user_id).all()
+    query_posts = db.query(Posts).filter(Posts.owner_id == user_id).all()
 
-    if not get_posts_model:
+    if not query_posts:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Posts not found"
         )
@@ -176,7 +176,7 @@ async def get_user_timeline(db: db_dependency, user_id: int = Path(gt=0)):
                 for reply in post.reply
             ],
         )
-        for post in get_posts_model
+        for post in query_posts
     ]
 
 
@@ -246,25 +246,23 @@ async def update_post(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication failed"
         )
 
-    post = db.query(Posts).filter(Posts.owner_id == user.get("id")).first()
+    query_post = db.query(Posts).filter(Posts.id == posts_id).first()
 
-    if post is None:
+    if not query_post:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Post to update not found"
+        )
+
+    if query_post.owner_id != user.get("id"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authorized to update this post",
         )
 
-    update_posts_model = db.query(Posts).filter(Posts.id == posts_id).first()
+    query_post.content = post_request.post_content
+    query_post.updated_date = datetime.now(pytz.utc)
 
-    if not update_posts_model:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Post to update not found"
-        )
-
-    update_posts_model.content = post_request.post_content
-    update_posts_model.updated_date = datetime.now(pytz.utc)
-
-    db.add(update_posts_model)
+    db.add(query_post)
     db.commit()
 
     return {"detail": "Post updated successfully"}
@@ -424,9 +422,7 @@ async def add_user_tag(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
         )
 
-    post = db.query(Posts).filter(Posts.owner_id == user.get("id")).first()
-
-    if post is None:
+    if query_post.owner_id != user.get("id"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authorized to update this post",
@@ -463,7 +459,7 @@ async def add_user_tag(
 
     query_post.tagged_user = json.dumps(user_tag.tagged_users)
     db.commit()
-    db.refresh(post)
+    db.refresh(query_post)
 
     return {"detail": "Added user tag successfully"}
 
@@ -484,9 +480,7 @@ async def remove_user_tags(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
         )
 
-    post = db.query(Posts).filter(Posts.owner_id == user.get("id")).first()
-
-    if post is None:
+    if query_post.owner_id != user.get("id"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authorized to update this post",
@@ -521,15 +515,13 @@ async def delete_post(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
         )
 
-    post = db.query(Posts).filter(Posts.owner_id == user.get("id")).first()
-
-    if post is None:
+    if query_post.owner_id != user.get("id"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authorized to delete this post",
         )
 
-    db.query(Posts).filter(Posts.id == post_id).delete()
+    db.delete(query_post)
     db.commit()
 
     return {"detail": "Post deleted successully"}

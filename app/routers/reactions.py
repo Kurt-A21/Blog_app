@@ -23,9 +23,9 @@ async def add_reaction_to_post(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
         )
 
-    query_post_model = db.query(Posts).filter(Posts.id == post_id).first()
+    query_post = db.query(Posts).filter(Posts.id == post_id).first()
 
-    if query_post_model is None:
+    if query_post is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
         )
@@ -43,7 +43,9 @@ async def add_reaction_to_post(
         )
 
     reaction_model = Reactions(
-        **reaction_request.model_dump(), owner_id=user.get("id"), post_id=post_id
+        owner_id=user.get("id"),
+        post_id=post_id,
+        reaction_type=reaction_request.reaction_type,
     )
 
     db.add(reaction_model)
@@ -51,7 +53,7 @@ async def add_reaction_to_post(
 
     return ReactionResponse(
         detail="Reaction added to post",
-        post_content=query_post_model.content,
+        post_content=query_post.content,
         reaction_type=reaction_model.reaction_type,
     )
 
@@ -73,16 +75,16 @@ async def add_reaction_to_comment(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
         )
 
-    query_post_model = db.query(Posts).filter(Posts.id == post_id).first()
+    query_post = db.query(Posts).filter(Posts.id == post_id).first()
 
-    if query_post_model is None:
+    if query_post is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
         )
 
-    query_comment_model = db.query(Comments).filter(Comments.id == comment_id).first()
+    query_comment = db.query(Comments).filter(Comments.id == comment_id).first()
 
-    if query_comment_model is None:
+    if query_comment is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
         )
@@ -101,7 +103,7 @@ async def add_reaction_to_comment(
             detail="User already reacted to comment",
         )
 
-    if query_comment_model.post_id != post_id:
+    if query_comment.post_id != post_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Comment does not belong to the given post",
@@ -119,8 +121,8 @@ async def add_reaction_to_comment(
 
     return ReactionResponse(
         detail="Reaction added to comment",
-        post_content=query_post_model.content,
-        comment_content=query_comment_model.content,
+        post_content=query_post.content,
+        comment_content=query_comment.content,
         reaction_type=reaction_model.reaction_type,
     )
 
@@ -143,25 +145,23 @@ async def add_reaction_to_reply(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
         )
 
-    query_post_model = db.query(Posts).filter(Posts.id == post_id).first()
+    query_post = db.query(Posts).filter(Posts.id == post_id).first()
 
-    if query_post_model is None:
+    if query_post is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
         )
 
-    query_comment_model = db.query(Comments).filter(Comments.id == comment_id).first()
+    query_post = db.query(Comments).filter(Comments.id == comment_id).first()
 
-    if query_comment_model is None:
+    if query_post is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
         )
 
-    query_reply_model = (
-        db.query(CommentReply).filter(CommentReply.id == reply_id).first()
-    )
+    query_reaction = db.query(CommentReply).filter(CommentReply.id == reply_id).first()
 
-    if query_reply_model is None:
+    if query_reaction is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Reply not found"
         )
@@ -178,7 +178,7 @@ async def add_reaction_to_reply(
             detail="User already reacted to reply",
         )
 
-    if query_reply_model.comment_id != comment_id:
+    if query_reaction.comment_id != comment_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Reply does not belong to the given comment",
@@ -197,9 +197,9 @@ async def add_reaction_to_reply(
 
     return ReactionResponse(
         detail="Reaction added to comment",
-        post_content=query_post_model.content,
-        comment_content=query_comment_model.content,
-        reply_content=query_reply_model.content,
+        post_content=query_post.content,
+        comment_content=query_post.content,
+        reply_content=query_reaction.content,
         reaction_type=reaction_model.reaction_type,
     )
 
@@ -221,43 +221,35 @@ async def update_post_reaction(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
         )
 
-    query_post_model = db.query(Posts).filter(Posts.id == post_id).first()
+    query_post = db.query(Posts).filter(Posts.id == post_id).first()
 
-    if query_post_model is None:
+    if query_post is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
         )
 
-    update_reaction_model = (
-        db.query(Reactions).filter(Reactions.id == reaction_id).first()
-    )
+    query_reaction = db.query(Reactions).filter(Reactions.id == reaction_id).first()
 
-    if not update_reaction_model:
+    if not query_reaction:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Reaction to update not found"
         )
 
-    check_reaction_owner = (
-        db.query(Reactions)
-        .filter(Reactions.id == reaction_id, Reactions.owner_id == user.get("id"))
-        .first()
-    )
-
-    if check_reaction_owner is None:
+    if query_reaction.owner_id != user.get("id"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Not authorized to update this reaction",
         )
 
-    update_reaction_model.reaction_type = update_reaction_request.reaction_type
+    query_reaction.reaction_type = update_reaction_request.reaction_type
 
-    db.add(update_reaction_model)
+    db.add(query_reaction)
     db.commit()
 
     return ReactionResponse(
         detail="Reaction type updated successfully",
-        post_content=query_post_model.content,
-        reaction_type=update_reaction_model.reaction_type,
+        post_content=query_post.content,
+        reaction_type=query_reaction.reaction_type,
     )
 
 
@@ -286,50 +278,41 @@ async def update_comment_reaction(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
         )
 
-    query_comment_model = db.query(Comments).filter(Comments.id == comment_id).first()
+    query_comment = db.query(Comments).filter(Comments.id == comment_id).first()
 
-    if query_comment_model is None:
+    if query_comment is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
         )
 
-    if query_comment_model.post_id != post_id:
+    if query_comment.post_id != post_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Comment does not belong to the given post",
         )
 
-    check_reaction_owner = (
-        db.query(Reactions)
-        .filter(Reactions.id == reaction_id, Reactions.owner_id == user.get("id"))
-        .first()
-    )
+    query_reaction = db.query(Reactions).filter(Reactions.id == reaction_id).first()
 
-    if check_reaction_owner is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to update this reaction",
-        )
-
-    update_reaction_model = (
-        db.query(Reactions).filter(Reactions.id == reaction_id).first()
-    )
-
-    if not update_reaction_model:
+    if not query_reaction:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Reaction to update not found"
         )
 
-    update_reaction_model.reaction_type = update_reaction_request.reaction_type
+    if query_reaction.owner_id != user.get("id"):
+        raise HTTPException(
+            status_code=403, detail="Not authorized to update this reaction"
+        )
 
-    db.add(update_reaction_model)
+    query_reaction.reaction_type = update_reaction_request.reaction_type
+
+    db.add(query_reaction)
     db.commit()
 
     return ReactionResponse(
         detail="Reaction type updated successfully",
         post_content=query_post_model.content,
-        comment_content=query_comment_model.content,
-        reaction_type=update_reaction_model.reaction_type,
+        comment_content=query_comment.content,
+        reaction_type=query_reaction.reaction_type,
     )
 
 
@@ -352,73 +335,63 @@ async def update_reply_reaction(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
         )
 
-    query_post_model = db.query(Posts).filter(Posts.id == post_id).first()
+    query_post = db.query(Posts).filter(Posts.id == post_id).first()
 
-    if query_post_model is None:
+    if query_post is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
         )
 
-    query_comment_model = db.query(Comments).filter(Comments.id == comment_id).first()
+    query_comment = db.query(Comments).filter(Comments.id == comment_id).first()
 
-    if query_comment_model is None:
+    if query_comment is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
         )
 
-    if query_comment_model.post_id != post_id:
+    if query_comment.post_id != post_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Comment does not belong to the given post",
         )
 
-    query_reply_model = (
-        db.query(CommentReply).filter(CommentReply.id == reply_id).first()
-    )
+    query_reply = db.query(CommentReply).filter(CommentReply.id == reply_id).first()
 
-    if query_reply_model is None:
+    if query_reply is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Reply not found"
         )
 
-    if query_reply_model.comment_id != comment_id:
+    if query_reply.comment_id != comment_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Reply does not belong to the given commentd",
         )
 
-    check_reaction_owner = (
-        db.query(Reactions)
-        .filter(Reactions.id == reaction_id, Reactions.owner_id == user.get("id"))
-        .first()
-    )
+    query_reaction = db.query(Reactions).filter(Reactions.id == reaction_id).first()
 
-    if check_reaction_owner is None:
+    if not query_reaction:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Reaction to update not found"
+        )
+
+    if query_reaction.owner_id != user.get("id"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to update this reaction",
         )
 
-    update_reaction_model = (
-        db.query(Reactions).filter(Reactions.id == reaction_id).first()
-    )
+    query_reaction.reaction_type = update_reaction_request.reaction_type
 
-    if not update_reaction_model:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Reaction to update not found"
-        )
-
-    update_reaction_model.reaction_type = update_reaction_request.reaction_type
-
-    db.add(update_reaction_model)
+    db.add(query_reaction)
     db.commit()
 
     return ReactionResponse(
         detail="Reaction type updated successfully",
-        post_content=query_post_model.content,
-        comment_content=query_comment_model.content,
-        reply_content=query_reply_model.content,
-        reaction_type=update_reaction_model.reaction_type,
+        post_content=query_post.content,
+        comment_content=query_comment.content,
+        reply_content=query_reply.content,
+        reaction_type=query_reaction.reaction_type,
     )
 
 
@@ -437,33 +410,27 @@ async def undo_post_reaction(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
         )
 
-    query_post_model = db.query(Posts).filter(Posts.id == post_id).first()
+    query_post = db.query(Posts).filter(Posts.id == post_id).first()
 
-    if query_post_model is None:
+    if query_post is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
         )
 
-    delete_reaction_model = (
-        db.query(Reactions).filter(Reactions.id == reaction_id).first()
-    )
+    query_reactiom = db.query(Reactions).filter(Reactions.id == reaction_id).first()
 
-    if delete_reaction_model is None:
+    if query_reactiom is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Reaction to undo not found"
         )
 
-    check_reaction_owner = (
-        db.query(Reactions).filter(Reactions.id == reaction_id).first()
-    )
-
-    if check_reaction_owner.owner_id != user.get("id"):
+    if query_reactiom.owner_id != user.get("id"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to undo this reaction",
         )
 
-    db.query(Reactions).filter(Reactions.id == reaction_id).delete()
+    db.delete(query_reactiom)
     db.commit()
 
     return {"detail": "Reaction deleted successfully"}
@@ -485,46 +452,40 @@ async def undo_comment_reaction(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
         )
 
-    query_post_model = db.query(Posts).filter(Posts.id == post_id).first()
+    query_post = db.query(Posts).filter(Posts.id == post_id).first()
 
-    if query_post_model is None:
+    if query_post is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
         )
 
-    query_comment_model = db.query(Comments).filter(Comments.id == comment_id).first()
+    query_comment = db.query(Comments).filter(Comments.id == comment_id).first()
 
-    if query_comment_model is None:
+    if query_comment is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
         )
 
-    if query_comment_model.post_id != post_id:
+    if query_comment.post_id != post_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Comment does not belong to the given post",
         )
 
-    delete_reaction_model = (
-        db.query(Reactions).filter(Reactions.id == reaction_id).first()
-    )
+    query_reaction = db.query(Reactions).filter(Reactions.id == reaction_id).first()
 
-    if delete_reaction_model is None:
+    if query_reaction is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Reaction to undo not found"
         )
 
-    check_reaction_owner = (
-        db.query(Reactions).filter(Reactions.id == reaction_id).first()
-    )
-
-    if check_reaction_owner.owner_id != user.get("id"):
+    if query_reaction.owner_id != user.get("id"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to undo this reaction",
         )
 
-    db.delete(delete_reaction_model)
+    db.delete(query_reaction)
     db.commit()
 
     return {"detail": "Reaction deleted successfully"}
@@ -547,61 +508,53 @@ async def undo_reply_reaction(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
         )
 
-    query_post_model = db.query(Posts).filter(Posts.id == post_id).first()
+    query_post = db.query(Posts).filter(Posts.id == post_id).first()
 
-    if query_post_model is None:
+    if query_post is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
         )
 
-    query_comment_model = db.query(Comments).filter(Comments.id == comment_id).first()
+    query_comment = db.query(Comments).filter(Comments.id == comment_id).first()
 
-    if query_comment_model is None:
+    if query_comment is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
         )
 
-    if query_comment_model.post_id != post_id:
+    if query_comment.post_id != post_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Comment does not belong to the given post",
         )
 
-    query_reply_model = (
-        db.query(CommentReply).filter(CommentReply.id == reply_id).first()
-    )
+    query_reply = db.query(CommentReply).filter(CommentReply.id == reply_id).first()
 
-    if query_reply_model is None:
+    if query_reply is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Reply not found"
         )
 
-    if query_reply_model.comment_id != comment_id:
+    if query_reply.comment_id != comment_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Reply does not belong to the given comment",
         )
 
-    delete_reaction_model = (
-        db.query(Reactions).filter(Reactions.id == reaction_id).first()
-    )
+    query_reaction = db.query(Reactions).filter(Reactions.id == reaction_id).first()
 
-    if delete_reaction_model is None:
+    if query_reaction is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Reaction to undo not found"
         )
 
-    check_reaction_owner = (
-        db.query(Reactions).filter(Reactions.id == reaction_id).first()
-    )
-
-    if check_reaction_owner.owner_id != user.get("id"):
+    if query_reaction.owner_id != user.get("id"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to undo this reaction",
         )
 
-    db.delete(delete_reaction_model)
+    db.delete(query_reaction)
     db.commit()
 
     return {"detail": "Reaction deleted successfully"}
