@@ -16,6 +16,7 @@ from schemes import (
     UserTag,
     GetReplies,
 )
+from services import upload_image, update_image, remove_image
 import json
 from datetime import datetime
 import pytz
@@ -181,7 +182,7 @@ async def get_user_timeline(db: db_dependency, user_id: int = Path(gt=0)):
 
 
 @router.post(
-    "/create/", status_code=status.HTTP_201_CREATED, response_model=CreatePostResponse
+    "/create", status_code=status.HTTP_201_CREATED, response_model=CreatePostResponse
 )
 async def create_post(
     user: user_dependency,
@@ -212,6 +213,7 @@ async def create_post(
         created_by=user.get("username"),
         owner_id=user.get("id"),
         content=post_request.post_content,
+        image_url=None,
         created_at=datetime.now(pytz.utc),
     )
 
@@ -228,7 +230,6 @@ async def create_post(
             created_by=user.get("username"),
             tagged_users=post_model.get_tagged_user(),
             post_content=post_model.content,
-            image_url=post_model.image_url,
             created_at=post_model.created_at,
         ),
     }
@@ -285,34 +286,12 @@ async def upload_image_to_post(
     if check_post.image_url:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User already has an image for this post",
+            detail="User already have an image for this post",
         )
 
-    filename = file.filename
-    extension = filename.rsplit(".")[-1].lower()
-    if extension not in ["png", "jpg", "jpeg"]:
-        raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail="File extension not allowed",
-        )
+    image = await upload_image(file)
 
-    FILEPATH = Path(__file__).resolve().parent.parent / "static"
-    FILEPATH.mkdir(parents=True, exist_ok=True)
-
-    token_name = secrets.token_hex(10) + "." + extension
-    generated_name = FILEPATH / token_name
-    file_content = await file.read()
-
-    with open(generated_name, "wb") as f:
-        f.write(file_content)
-
-    img = Image.open(generated_name)
-    resized_img = img.resize(size=(200, 200))
-    resized_img.save(generated_name)
-
-    await file.close()
-
-    check_post.image_url = token_name
+    check_post.image_url = image
     db.commit()
 
     return {"detail": "Image on post uploaded successfully"}
@@ -333,37 +312,9 @@ async def update_image_on_post(
     check_post = db.query(Posts).filter(Posts.id == post_id).first()
 
     if check_post.image_url:
-        filename = file.filename
-        extension = filename.rsplit(".")[-1].lower()
+        image = await update_image(post=check_post, file=file)
 
-        if extension not in ["png", "jpg", "jpeg"]:
-            raise HTTPException(
-                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-                detail="File extension not allowed",
-            )
-
-        FILEPATH = Path(__file__).resolve().parent.parent / "static"
-        FILEPATH.mkdir(parents=True, exist_ok=True)
-
-        if check_post.image_url:
-            old_avatar_path = FILEPATH / check_post.image_url
-            if old_avatar_path.exists():
-                old_avatar_path.unlink()
-
-        token_name = secrets.token_hex(10) + "." + extension
-        generated_name = FILEPATH / token_name
-        file_content = await file.read()
-
-        with open(generated_name, "wb") as f:
-            f.write(file_content)
-
-        img = Image.open(generated_name)
-        resized_img = img.resize(size=(200, 200))
-        resized_img.save(generated_name)
-
-        await file.close()
-
-        check_post.image_url = token_name
+        check_post.image_url = image
         db.commit()
 
         return {"detail": "Image on post updated successfully"}
@@ -386,15 +337,9 @@ async def remove_image_from_post(
             detail="User does not have a image on this post",
         )
 
-    FILEPATH = Path(__file__).resolve().parent.parent / "static"
-    old_avatar_path = FILEPATH / check_post.image_url
+    image = remove_image(post=check_post)
 
-    try:
-        old_avatar_path.unlink()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete image: {e}")
-
-    check_post.image_url = None
+    check_post.image_url = image
     db.commit()
 
     return {"detail": "Image removed from post"}

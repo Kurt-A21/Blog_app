@@ -17,12 +17,9 @@ from jose import jwt, JWTError
 from schemes import TokenResponse, UserCreate, ResetPassword
 from enum import Enum
 import os
-from service import send_reset_email
-from utils import (
-    load_environment,
-    create_reset_token,
-    verify_reset_token,
-)
+from services import send_reset_email, create_reset_token, verify_reset_token
+from utils import load_environment
+
 
 load_environment()
 router = APIRouter()
