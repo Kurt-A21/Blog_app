@@ -1,4 +1,6 @@
 import smtplib
+from fastapi import HTTPException
+from starlette import status
 from email.message import EmailMessage
 import os
 from utils import load_environment
@@ -40,4 +42,7 @@ def send_reset_email(to_email, username, reset_token):
             smtp.login(EMAIL, APP_PASSWORD)
             smtp.send_message(message)
     except Exception as e:
-        print("Email sending failed:", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Email sending failed: {e}",
+        )
