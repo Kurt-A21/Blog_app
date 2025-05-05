@@ -16,6 +16,7 @@ from schemes import (
     UserTag,
     GetReplies,
 )
+from services import upload_image, update_image, remove_image
 import json
 from datetime import datetime
 import pytz
@@ -27,7 +28,7 @@ router = APIRouter()
 
 @router.get("", status_code=status.HTTP_200_OK, response_model=List[PostResponse])
 async def get_all_posts(db: db_dependency):
-    get_posts_model = (
+    query_posts = (
         db.query(Posts)
         .options(
             joinedload(Posts.comments).joinedload(Comments.user),
@@ -36,7 +37,7 @@ async def get_all_posts(db: db_dependency):
         .all()
     )
 
-    if not get_posts_model:
+    if not query_posts:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Posts not found"
         )
@@ -100,7 +101,7 @@ async def get_all_posts(db: db_dependency):
                 for reply in post.reply
             ],
         )
-        for post in get_posts_model
+        for post in query_posts
     ]
 
 
@@ -110,9 +111,9 @@ async def get_all_posts(db: db_dependency):
     response_model=List[PostResponse],
 )
 async def get_user_timeline(db: db_dependency, user_id: int = Path(gt=0)):
-    get_posts_model = db.query(Posts).filter(Posts.owner_id == user_id).all()
+    query_posts = db.query(Posts).filter(Posts.owner_id == user_id).all()
 
-    if not get_posts_model:
+    if not query_posts:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Posts not found"
         )
@@ -176,12 +177,12 @@ async def get_user_timeline(db: db_dependency, user_id: int = Path(gt=0)):
                 for reply in post.reply
             ],
         )
-        for post in get_posts_model
+        for post in query_posts
     ]
 
 
 @router.post(
-    "/create/", status_code=status.HTTP_201_CREATED, response_model=CreatePostResponse
+    "/create", status_code=status.HTTP_201_CREATED, response_model=CreatePostResponse
 )
 async def create_post(
     user: user_dependency,
@@ -212,6 +213,7 @@ async def create_post(
         created_by=user.get("username"),
         owner_id=user.get("id"),
         content=post_request.post_content,
+        image_url=None,
         created_at=datetime.now(pytz.utc),
     )
 
@@ -228,7 +230,6 @@ async def create_post(
             created_by=user.get("username"),
             tagged_users=post_model.get_tagged_user(),
             post_content=post_model.content,
-            image_url=post_model.image_url,
             created_at=post_model.created_at,
         ),
     }
@@ -246,25 +247,23 @@ async def update_post(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication failed"
         )
 
-    post = db.query(Posts).filter(Posts.owner_id == user.get("id")).first()
+    query_post = db.query(Posts).filter(Posts.id == posts_id).first()
 
-    if post is None:
+    if not query_post:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Post to update not found"
+        )
+
+    if query_post.owner_id != user.get("id"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authorized to update this post",
         )
 
-    update_posts_model = db.query(Posts).filter(Posts.id == posts_id).first()
+    query_post.content = post_request.post_content
+    query_post.updated_date = datetime.now(pytz.utc)
 
-    if not update_posts_model:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Post to update not found"
-        )
-
-    update_posts_model.content = post_request.post_content
-    update_posts_model.updated_date = datetime.now(pytz.utc)
-
-    db.add(update_posts_model)
+    db.add(query_post)
     db.commit()
 
     return {"detail": "Post updated successfully"}
@@ -287,34 +286,12 @@ async def upload_image_to_post(
     if check_post.image_url:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User already has an image for this post",
+            detail="User already have an image for this post",
         )
 
-    filename = file.filename
-    extension = filename.rsplit(".")[-1].lower()
-    if extension not in ["png", "jpg", "jpeg"]:
-        raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail="File extension not allowed",
-        )
+    image = await upload_image(file)
 
-    FILEPATH = Path(__file__).resolve().parent.parent / "static"
-    FILEPATH.mkdir(parents=True, exist_ok=True)
-
-    token_name = secrets.token_hex(10) + "." + extension
-    generated_name = FILEPATH / token_name
-    file_content = await file.read()
-
-    with open(generated_name, "wb") as f:
-        f.write(file_content)
-
-    img = Image.open(generated_name)
-    resized_img = img.resize(size=(200, 200))
-    resized_img.save(generated_name)
-
-    await file.close()
-
-    check_post.image_url = token_name
+    check_post.image_url = image
     db.commit()
 
     return {"detail": "Image on post uploaded successfully"}
@@ -335,37 +312,9 @@ async def update_image_on_post(
     check_post = db.query(Posts).filter(Posts.id == post_id).first()
 
     if check_post.image_url:
-        filename = file.filename
-        extension = filename.rsplit(".")[-1].lower()
+        image = await update_image(post=check_post, file=file)
 
-        if extension not in ["png", "jpg", "jpeg"]:
-            raise HTTPException(
-                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-                detail="File extension not allowed",
-            )
-
-        FILEPATH = Path(__file__).resolve().parent.parent / "static"
-        FILEPATH.mkdir(parents=True, exist_ok=True)
-
-        if check_post.image_url:
-            old_avatar_path = FILEPATH / check_post.image_url
-            if old_avatar_path.exists():
-                old_avatar_path.unlink()
-
-        token_name = secrets.token_hex(10) + "." + extension
-        generated_name = FILEPATH / token_name
-        file_content = await file.read()
-
-        with open(generated_name, "wb") as f:
-            f.write(file_content)
-
-        img = Image.open(generated_name)
-        resized_img = img.resize(size=(200, 200))
-        resized_img.save(generated_name)
-
-        await file.close()
-
-        check_post.image_url = token_name
+        check_post.image_url = image
         db.commit()
 
         return {"detail": "Image on post updated successfully"}
@@ -388,15 +337,9 @@ async def remove_image_from_post(
             detail="User does not have a image on this post",
         )
 
-    FILEPATH = Path(__file__).resolve().parent.parent / "static"
-    old_avatar_path = FILEPATH / check_post.image_url
+    image = remove_image(post=check_post)
 
-    try:
-        old_avatar_path.unlink()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete image: {e}")
-
-    check_post.image_url = None
+    check_post.image_url = image
     db.commit()
 
     return {"detail": "Image removed from post"}
@@ -424,9 +367,7 @@ async def add_user_tag(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
         )
 
-    post = db.query(Posts).filter(Posts.owner_id == user.get("id")).first()
-
-    if post is None:
+    if query_post.owner_id != user.get("id"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authorized to update this post",
@@ -463,7 +404,7 @@ async def add_user_tag(
 
     query_post.tagged_user = json.dumps(user_tag.tagged_users)
     db.commit()
-    db.refresh(post)
+    db.refresh(query_post)
 
     return {"detail": "Added user tag successfully"}
 
@@ -484,9 +425,7 @@ async def remove_user_tags(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
         )
 
-    post = db.query(Posts).filter(Posts.owner_id == user.get("id")).first()
-
-    if post is None:
+    if query_post.owner_id != user.get("id"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authorized to update this post",
@@ -521,15 +460,13 @@ async def delete_post(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
         )
 
-    post = db.query(Posts).filter(Posts.owner_id == user.get("id")).first()
-
-    if post is None:
+    if query_post.owner_id != user.get("id"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authorized to delete this post",
         )
 
-    db.query(Posts).filter(Posts.id == post_id).delete()
+    db.delete(query_post)
     db.commit()
 
     return {"detail": "Post deleted successully"}

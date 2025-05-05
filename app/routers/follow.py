@@ -14,21 +14,21 @@ router = APIRouter()
     response_model=List[GetFollower],
 )
 async def get_followers(db: db_dependency, user_id: int = Path(gt=0)):
-    get_followers_model = (
+    get_followers = (
         db.query(Users)
         .join(Follows, Follows.follower_id == Users.id)
         .filter(Follows.user_id == user_id)
         .all()
     )
 
-    if not get_followers_model:
+    if not get_followers:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="No followers found"
         )
 
     return [
         GetFollower(user_id=follower.id, username=follower.username)
-        for follower in get_followers_model
+        for follower in get_followers
     ]
 
 
@@ -38,14 +38,14 @@ async def get_followers(db: db_dependency, user_id: int = Path(gt=0)):
     response_model=List[GetFollower],
 )
 async def get_following(db: db_dependency, user_id: int = Path(gt=0)):
-    get_following_model = (
+    get_following = (
         db.query(Users)
         .join(Follows, Follows.user_id == Users.id)
         .filter(Follows.follower_id == user_id)
         .all()
     )
 
-    if not get_following_model:
+    if not get_following:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Not following any users yet",
@@ -53,7 +53,7 @@ async def get_following(db: db_dependency, user_id: int = Path(gt=0)):
 
     return [
         GetFollower(user_id=following.id, username=following.username)
-        for following in get_following_model
+        for following in get_following
     ]
 
 
@@ -68,9 +68,9 @@ async def follow_user(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
         )
 
-    get_user_model = db.query(Users).filter(Users.id == user_id).first()
+    query_user = db.query(Users).filter(Users.id == user_id).first()
 
-    if get_user_model is None:
+    if query_user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
@@ -93,7 +93,7 @@ async def follow_user(
     db.add(follow_model)
     db.commit()
 
-    return FollowUser(detail=f"You are now following {get_user_model.username}")
+    return FollowUser(detail=f"You are now following {query_user.username}")
 
 
 @router.delete("/{user_id}/unfollow", status_code=status.HTTP_200_OK)
@@ -103,9 +103,9 @@ async def unfollow(user: user_dependency, db: db_dependency, user_id: int = Path
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
         )
 
-    get_user_model = db.query(Users).filter(Users.id == user_id).first()
+    query_user = db.query(Users).filter(Users.id == user_id).first()
 
-    if get_user_model is None:
+    if query_user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
@@ -127,4 +127,4 @@ async def unfollow(user: user_dependency, db: db_dependency, user_id: int = Path
     ).delete()
     db.commit()
 
-    return {"detail": f"You have unfollowed {get_user_model.username}"}
+    return {"detail": f"You have unfollowed {query_user.username}"}

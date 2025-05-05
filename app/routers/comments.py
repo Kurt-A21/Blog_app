@@ -26,18 +26,18 @@ async def create_comment(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
         )
 
-    query_model = db.query(Posts).filter(Posts.id == post_id).first()
+    query_post = db.query(Posts).filter(Posts.id == post_id).first()
 
-    if query_model is None:
+    if query_post is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
         )
 
     comment_model = Comments(
-        **comment_request.model_dump(),
         owner_id=user.get("id"),
         post_id=post_id,
-        created_at=datetime.now(pytz.utc)
+        content=comment_request.content,
+        created_at=datetime.now(pytz.utc),
     )
 
     db.add(comment_model)
@@ -45,8 +45,8 @@ async def create_comment(
 
     return CommentResponse(
         detail="Comment added successully",
-        post_id=query_model.id,
-        post_content=query_model.content,
+        post_id=query_post.id,
+        post_content=query_post.content,
         comment_id=comment_model.id,
         comment_content=comment_model.content,
         created_at=comment_model.created_at,
@@ -70,37 +70,35 @@ async def update_comment(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
         )
 
-    query_post_model = db.query(Posts).filter(Posts.id == post_id).first()
+    query_post = db.query(Posts).filter(Posts.id == post_id).first()
 
-    if query_post_model is None:
+    if query_post is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
         )
 
-    post = db.query(Posts).filter(Posts.owner_id == user.get("id")).first()
+    query_comment = db.query(Comments).filter(Comments.id == comment_id).first()
 
-    if post is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authorized to update this post",
-        )
-
-    updated_comment_model = db.query(Comments).filter(Comments.id == comment_id).first()
-
-    if updated_comment_model is None:
+    if query_comment is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
         )
 
-    updated_comment_model.content = update_comment_request.comment_content
-    updated_comment_model.updated_date = datetime.now(pytz.utc)
+    if query_comment.owner_id != user.get("id"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authorized to update this comment",
+        )
 
-    db.add(updated_comment_model)
+    query_comment.content = update_comment_request.comment_content
+    query_comment.updated_date = datetime.now(pytz.utc)
+
+    db.add(query_comment)
     db.commit()
 
     return CommentUpdateResponse(
         detail="Comment updated successfully",
-        comment_content=updated_comment_model.content,
+        comment_content=query_comment.content,
         updated_date=datetime.now(pytz.utc),
     )
 
@@ -117,7 +115,7 @@ async def delete_comment(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
         )
 
-    query_post_model = (
+    query_post = (
         db.query(Posts)
         .options(joinedload(Posts.comments))
         .filter(Posts.id == post_id)
@@ -125,13 +123,19 @@ async def delete_comment(
     )
 
     query_comment = next(
-        (comment for comment in query_post_model.comments if comment.id == comment_id),
+        (comment for comment in query_post.comments if comment.id == comment_id),
         None,
     )
 
     if not query_comment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
+        )
+
+    if query_comment.owner_id != user.get("id"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authorized to update this comment",
         )
 
     db.delete(query_comment)
