@@ -1,8 +1,7 @@
 from fastapi import APIRouter, HTTPException, Path, Query
 from starlette import status
-from db import db_dependency, Users, Posts, Comments
+from db import db_dependency, Users, Posts, Comments, CommentReply
 from .users import user_dependency
-from constants import UserRole
 from schemes import UserResponse
 from typing import Optional, List
 from uuid import UUID
@@ -134,19 +133,52 @@ async def delete_comment(
 ):
     is_user_admin(user)
 
-    query_post = (
-        db.query(Posts)
-        .options(joinedload(Posts.comments))
-        .filter(Posts.id == post_id)
+    query_comment = (
+        db.query(Comments)
+        .filter(Comments.id == comment_id, Comments.post_id == post_id)
         .first()
     )
 
-    for comment in query_post.comments:
-        if comment.id == comment_id:
-            db.query(Comments).filter(Comments.id == comment_id).delete()
-            db.commit()
-            return {"detail": "Comment deleted succcessfully"}
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
-            )
+    if not query_comment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
+        )
+
+    db.delete(query_comment)
+    db.commit()
+
+    return {"detail": "Comment deleted successfully"}
+
+
+@router.delete(
+    "/post/{post_id}/comment/{comment_id}/reply/{reply_id}",
+    status_code=status.HTTP_200_OK,
+)
+async def delete_reply(
+    user: user_dependency,
+    db: db_dependency,
+    post_id: int = Path(gt=0),
+    comment_id: int = Path(gt=0),
+    reply_id: int = Path(gt=0),
+):
+    is_user_admin(user)
+
+    query_reply = (
+        db.query(CommentReply)
+        .filter(
+            CommentReply.id == reply_id,
+            CommentReply.comment_id == comment_id,
+            CommentReply.post_id == post_id,
+        )
+        .first()
+    )
+
+    if not query_reply:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Reply not found"
+        )
+
+    db.delete(query_reply)
+    db.commit()
+
+    return {"detail": "Reply deleted successfully"}
