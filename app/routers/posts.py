@@ -1,9 +1,7 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Path
 from starlette import status
-from PIL import Image
-import secrets
 from pathlib import Path
-from db import db_dependency, Posts, Comments, Users
+from db import db_dependency, Posts, Comments, Users, CommentReply, Reactions
 from .users import user_dependency
 from schemes import (
     PostCreate,
@@ -22,27 +20,36 @@ from datetime import datetime
 import pytz
 from typing import List
 from sqlalchemy.orm import joinedload
+import os
+from utils import load_environment, is_user_authenticated, get_post_or_404
 
 router = APIRouter()
+
+load_environment()
+BASE_URL = os.getenv("BASE_URL")
 
 
 @router.get("", status_code=status.HTTP_200_OK, response_model=List[PostResponse])
 async def get_all_posts(db: db_dependency):
-    query_posts = (
-        db.query(Posts)
-        .options(
-            joinedload(Posts.comments).joinedload(Comments.user),
-            joinedload(Posts.reply),
-        )
-        .all()
+    query_posts = db.query(Posts).options(
+        joinedload(Posts.comments).joinedload(Comments.user),
+        joinedload(Posts.comments)
+        .joinedload(Comments.reactions)
+        .joinedload(Reactions.user),
+        joinedload(Posts.comments)
+        .joinedload(Comments.replies)
+        .joinedload(CommentReply.user),
+        joinedload(Posts.comments)
+        .joinedload(Comments.replies)
+        .joinedload(CommentReply.reactions)
+        .joinedload(Reactions.user),
+        joinedload(Posts.reactions).joinedload(Reactions.user),
     )
 
     if not query_posts:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Posts not found"
         )
-
-    BASE_URL = "http://127.0.0.1:8000"
 
     return [
         PostResponse(
@@ -69,36 +76,36 @@ async def get_all_posts(db: db_dependency):
                     created_by=comment.user.username,
                     comment_content=comment.content,
                     created_at=comment.created_at,
-                    reaction_count=len(post.reactions),
+                    reaction_count=len(comment.reactions),
                     reactions=[
                         GetReactions(
-                            id=reaction.id,
-                            owner=reaction.user.username,
-                            reaction_type=reaction.reaction_type,
+                            id=comment_reaction.id,
+                            owner=comment_reaction.user.username,
+                            reaction_type=comment_reaction.reaction_type,
                         )
-                        for reaction in comment.reactions
+                        for comment_reaction in comment.reactions
+                    ],
+                    reply_count=len(comment.replies),
+                    reply=[
+                        GetReplies(
+                            id=reply.id,
+                            created_by=reply.user.username,
+                            reply_content=reply.content,
+                            created_at=reply.created_at,
+                            reaction_count=len(reply.reactions),
+                            reactions=[
+                                GetReactions(
+                                    id=reply_reactions.id,
+                                    owner=reply_reactions.user.username,
+                                    reaction_type=reply_reactions.reaction_type,
+                                )
+                                for reply_reactions in reply.reactions
+                            ],
+                        )
+                        for reply in comment.replies
                     ],
                 )
                 for comment in post.comments
-            ],
-            reply_count=len(post.reply),
-            reply=[
-                GetReplies(
-                    id=reply.id,
-                    created_by=reply.user.username,
-                    reply_content=reply.content,
-                    created_at=reply.created_at,
-                    reaction_count=len(post.reactions),
-                    reactions=[
-                        GetReactions(
-                            id=reactions.id,
-                            owner=reactions.user.username,
-                            reaction_type=reactions.reaction_type,
-                        )
-                        for reactions in reply.reactions
-                    ],
-                )
-                for reply in post.reply
             ],
         )
         for post in query_posts
@@ -117,8 +124,6 @@ async def get_user_timeline(db: db_dependency, user_id: int = Path(gt=0)):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Posts not found"
         )
-
-    BASE_URL = "http://127.0.0.1:8000"
 
     return [
         PostResponse(
@@ -143,38 +148,38 @@ async def get_user_timeline(db: db_dependency, user_id: int = Path(gt=0)):
                 GetComments(
                     id=comment.id,
                     created_by=comment.user.username,
-                    content=comment.content,
+                    comment_content=comment.content,
                     created_at=comment.created_at,
-                    reaction_count=len(post.reactions),
+                    reaction_count=len(comment.reactions),
                     reactions=[
                         GetReactions(
-                            id=reaction.id,
-                            owner=reaction.user.username,
-                            reaction_type=reaction.reaction_type,
+                            id=comment_reaction.id,
+                            owner=comment_reaction.user.username,
+                            reaction_type=comment_reaction.reaction_type,
                         )
-                        for reaction in comment.reactions
+                        for comment_reaction in comment.reactions
+                    ],
+                    reply_count=len(comment.replies),
+                    reply=[
+                        GetReplies(
+                            id=reply.id,
+                            created_by=reply.user.username,
+                            reply_content=reply.content,
+                            created_at=reply.created_at,
+                            reaction_count=len(reply.reactions),
+                            reactions=[
+                                GetReactions(
+                                    id=reply_reactions.id,
+                                    owner=reply_reactions.user.username,
+                                    reaction_type=reply_reactions.reaction_type,
+                                )
+                                for reply_reactions in reply.reactions
+                            ],
+                        )
+                        for reply in comment.replies
                     ],
                 )
                 for comment in post.comments
-            ],
-            reply_count=len(post.reply),
-            reply=[
-                GetReplies(
-                    id=reply.id,
-                    created_by=reply.user.username,
-                    reply_content=reply.content,
-                    created_at=reply.created_at,
-                    reaction_count=len(post.reactions),
-                    reactions=[
-                        GetReactions(
-                            id=reactions.id,
-                            owner=reactions.user.username,
-                            reaction_type=reactions.reaction_type,
-                        )
-                        for reactions in reply.reactions
-                    ],
-                )
-                for reply in post.reply
             ],
         )
         for post in query_posts
@@ -189,15 +194,11 @@ async def create_post(
     db: db_dependency,
     post_request: PostCreate,
 ):
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication failed"
-        )
-
+    check_auth = is_user_authenticated(user)
     tagged_users = post_request.tagged_users
 
     for username in tagged_users:
-        if tagged_users == user.get("username"):
+        if username == check_auth.get("username"):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="User can't tag themself",
@@ -210,8 +211,8 @@ async def create_post(
             )
 
     post_model = Posts(
-        created_by=user.get("username"),
-        owner_id=user.get("id"),
+        created_by=check_auth.get("username"),
+        owner_id=check_auth.get("id"),
         content=post_request.post_content,
         image_url=None,
         created_at=datetime.now(pytz.utc),
@@ -226,8 +227,8 @@ async def create_post(
     return {
         "detail": "Post created successfully",
         "post_details": PostResponse(
-            id=user.get("id"),
-            created_by=user.get("username"),
+            id=check_auth.get("id"),
+            created_by=check_auth.get("username"),
             tagged_users=post_model.get_tagged_user(),
             post_content=post_model.content,
             created_at=post_model.created_at,
@@ -242,19 +243,10 @@ async def update_post(
     post_request: PostUpdate,
     posts_id: int = Path(gt=0),
 ):
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication failed"
-        )
+    check_auth = is_user_authenticated(user)
+    query_post = get_post_or_404(db=db, post_id=posts_id)
 
-    query_post = db.query(Posts).filter(Posts.id == posts_id).first()
-
-    if not query_post:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Post to update not found"
-        )
-
-    if query_post.owner_id != user.get("id"):
+    if query_post.owner_id != check_auth.get("id"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authorized to update this post",
@@ -276,14 +268,10 @@ async def upload_image_to_post(
     post_id: int = Path(gt=0),
     file: UploadFile = File(...),
 ):
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
+    is_user_authenticated(user)
+    query_post = get_post_or_404(db=db, post_id=post_id)
 
-    check_post = db.query(Posts).filter(Posts.id == post_id).first()
-
-    if check_post.image_url:
+    if query_post.image_url:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User already have an image for this post",
@@ -291,7 +279,7 @@ async def upload_image_to_post(
 
     image = await upload_image(file)
 
-    check_post.image_url = image
+    query_post.image_url = image
     db.commit()
 
     return {"detail": "Image on post uploaded successfully"}
@@ -304,42 +292,34 @@ async def update_image_on_post(
     post_id: int = Path(gt=0),
     file: UploadFile = File(...),
 ):
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
+    is_user_authenticated(user)
+    query_post = get_post_or_404(db=db, post_id=post_id)
 
-    check_post = db.query(Posts).filter(Posts.id == post_id).first()
+    if query_post.image_url:
+        image = await update_image(post=query_post, file=file)
 
-    if check_post.image_url:
-        image = await update_image(post=check_post, file=file)
-
-        check_post.image_url = image
+        query_post.image_url = image
         db.commit()
 
         return {"detail": "Image on post updated successfully"}
 
 
-@router.delete("{post_id}/remove_image", status_code=status.HTTP_200_OK)
+@router.delete("/{post_id}/remove_image", status_code=status.HTTP_200_OK)
 async def remove_image_from_post(
     user: user_dependency, db: db_dependency, post_id: int = Path(gt=0)
 ):
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
+    is_user_authenticated(user)
+    query_post = get_post_or_404(db=db, post_id=post_id)
 
-    check_post = db.query(Posts).filter(Posts.id == post_id).first()
-
-    if check_post.image_url is None:
+    if query_post.image_url is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User does not have a image on this post",
         )
 
-    image = remove_image(post=check_post)
+    image = remove_image(post=query_post)
 
-    check_post.image_url = image
+    query_post.image_url = image
     db.commit()
 
     return {"detail": "Image removed from post"}
@@ -355,19 +335,10 @@ async def add_user_tag(
     user_tag: UserTag,
     post_id: int = Path(gt=0),
 ):
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication failed"
-        )
+    check_auth = is_user_authenticated(user)
+    query_post = get_post_or_404(db=db, post_id=post_id)
 
-    query_post = db.query(Posts).filter(Posts.id == post_id).first()
-
-    if query_post is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
-        )
-
-    if query_post.owner_id != user.get("id"):
+    if query_post.owner_id != check_auth.get("id"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authorized to update this post",
@@ -389,7 +360,7 @@ async def add_user_tag(
             )
 
     for username in user_tag.tagged_users:
-        if username == user.get("username"):
+        if username == check_auth.get("username"):
             raise HTTPException(status_code=400, detail="User can't tag themselves")
 
         if query_post.is_user_tagged(username):
@@ -413,19 +384,10 @@ async def add_user_tag(
 async def remove_user_tags(
     user: user_dependency, db: db_dependency, post_id: int = Path(gt=0)
 ):
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication failed"
-        )
+    check_auth = is_user_authenticated(user)
+    query_post = get_post_or_404(db=db, post_id=post_id)
 
-    query_post = db.query(Posts).filter(Posts.id == post_id).first()
-
-    if query_post is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
-        )
-
-    if query_post.owner_id != user.get("id"):
+    if query_post.owner_id != check_auth.get("id"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authorized to update this post",
@@ -448,19 +410,10 @@ async def remove_user_tags(
 async def delete_post(
     user: user_dependency, db: db_dependency, post_id: int = Path(gt=0)
 ):
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication failed"
-        )
+    check_auth = is_user_authenticated(user)
+    query_post = get_post_or_404(db=db, post_id=post_id)
 
-    query_post = db.query(Posts).filter(Posts.id == post_id).first()
-
-    if query_post is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
-        )
-
-    if query_post.owner_id != user.get("id"):
+    if query_post.owner_id != check_auth.get("id"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authorized to delete this post",

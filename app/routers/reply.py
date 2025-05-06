@@ -2,10 +2,15 @@ from fastapi import APIRouter, HTTPException, Path
 from starlette import status
 from datetime import datetime
 import pytz
-from db import db_dependency, Comments, Posts, CommentReply
+from db import db_dependency, CommentReply
 from .users import user_dependency
-from schemes import ReplyCreate, ReplyResponse, ReplyUpdateResponse
-from sqlalchemy.orm import joinedload
+from utils import (
+    is_user_authenticated,
+    get_reply_or_404,
+    get_comment_or_404,
+    get_post_or_404,
+)
+from schemes import ReplyCreate, ReplyResponse, ReplyUpdateResponse, ReplyUpdate
 
 router = APIRouter()
 
@@ -20,27 +25,12 @@ async def create_reply(
     post_id: int = Path(gt=0),
     comment_id: int = Path(gt=0),
 ):
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
-
-    query_post = db.query(Posts).filter(Posts.id == post_id).first()
-
-    if query_post is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
-        )
-
-    query_comment = db.query(Comments).filter(Comments.id == comment_id).first()
-
-    if query_comment is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
-        )
+    check_auth = is_user_authenticated(user)
+    query_post = get_post_or_404(db=db, post_id=post_id)
+    query_comment = get_comment_or_404(db=db, comment_id=comment_id)
 
     reply_model = CommentReply(
-        owner_id=user.get("id"),
+        owner_id=check_auth.get("id"),
         post_id=post_id,
         comment_id=comment_id,
         content=reply_request.reply_content,
@@ -58,7 +48,7 @@ async def create_reply(
         comment_content=query_comment.content,
         reply_id=reply_model.id,
         reply_content=reply_model.content,
-        created_at=datetime.now(pytz.utc),
+        created_at=reply_model.created_at,
     )
 
 
@@ -70,38 +60,17 @@ async def create_reply(
 async def update_reply(
     user: user_dependency,
     db: db_dependency,
-    update_reply_request: ReplyCreate,
+    update_reply_request: ReplyUpdate,
     post_id: int = Path(gt=0),
     comment_id: int = Path(gt=0),
     reply_id: int = Path(gt=0),
 ):
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
+    check_auth = is_user_authenticated(user)
+    get_post_or_404(db=db, post_id=post_id)
+    get_comment_or_404(db=db, comment_id=comment_id)
+    query_reply = get_reply_or_404(db=db, reply_id=reply_id)
 
-    query_post = db.query(Posts).filter(Posts.id == post_id).first()
-
-    if query_post is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
-        )
-
-    query_comment = db.query(Comments).filter(Comments.id == comment_id).first()
-
-    if query_comment is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
-        )
-
-    query_reply = db.query(CommentReply).filter(CommentReply.id == reply_id).first()
-
-    if query_reply is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Reply not found"
-        )
-
-    if query_reply.owner_id != user.get("id"):
+    if query_reply.owner_id != check_auth.get("id"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to update this reply",
@@ -116,7 +85,7 @@ async def update_reply(
     return ReplyUpdateResponse(
         detail="Reply updated successfully",
         reply_content=query_reply.content,
-        updated_date=datetime.now(pytz.utc),
+        updated_date=query_reply.updated_date,
     )
 
 
@@ -130,11 +99,7 @@ async def delete_reply(
     comment_id: int = Path(gt=0),
     reply_id: int = Path(gt=0),
 ):
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
-
+    check_auth = is_user_authenticated(user)
     query_reply = (
         db.query(CommentReply)
         .filter(
@@ -148,7 +113,7 @@ async def delete_reply(
     if not query_reply:
         raise HTTPException(status_code=404, detail="Reply not found")
 
-    if query_reply.owner_id != user.get("id"):
+    if query_reply.owner_id != check_auth.get("id"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to delete this reply",

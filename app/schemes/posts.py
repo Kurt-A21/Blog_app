@@ -2,7 +2,6 @@ from datetime import datetime
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 from .comments import GetComments
-from .reply import GetReplies
 from .reactions import ReactionListResponse
 
 
@@ -38,8 +37,8 @@ class PostResponse(BaseModel):
     reactions: Optional[List[ReactionListResponse]] = []
     comment_count: Optional[int] = None
     comments: Optional[List[GetComments]] = []
-    reply_count: Optional[int] = None
-    reply: Optional[List[GetReplies]] = []
+    # reply_count: Optional[int] = None
+    # reply: Optional[List[GetReplies]] = []
 
     model_config = ConfigDict(from_attributes=True)
 

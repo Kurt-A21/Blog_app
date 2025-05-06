@@ -6,6 +6,7 @@ click==8.1.8
 colorama==0.4.6
 cryptography==44.0.2
 dnspython==2.7.0
+dotenv==0.9.9
 ecdsa==0.19.1
 email_validator==2.2.0
 fastapi==0.115.12
@@ -14,6 +15,9 @@ h11==0.14.0
 httptools==0.6.4
 idna==3.10
 passlib==1.7.4
+path==17.1.0
+pathlib==1.0.1
+pillow==11.2.1
 pyasn1==0.4.8
 pycparser==2.22
 pydantic==2.11.2
@@ -21,6 +25,7 @@ pydantic_core==2.33.1
 python-dotenv==1.1.0
 python-jose==3.4.0
 python-multipart==0.0.20
+pytz==2025.2
 PyYAML==6.0.2
 rsa==4.9
 six==1.17.0

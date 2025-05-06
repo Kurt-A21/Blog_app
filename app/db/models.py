@@ -73,7 +73,10 @@ class Posts(Base):
         "CommentReply", back_populates="post", cascade="all, delete-orphan"
     )
     reactions = relationship(
-        "Reactions", back_populates="post", cascade="all, delete-orphan"
+        "Reactions",
+        primaryjoin="and_(Reactions.post_id==Posts.id, Reactions.comment_id==None, Reactions.reply_id==None)",
+        back_populates="post",
+        cascade="all, delete-orphan",
     )
 
     def set_tagged_user(self, users: list):
@@ -116,7 +119,10 @@ class Comments(Base):
         "CommentReply", back_populates="comment", cascade="all, delete-orphan"
     )
     reactions = relationship(
-        "Reactions", back_populates="comments", cascade="all, delete-orphan"
+        "Reactions",
+        primaryjoin="and_(Reactions.comment_id==Comments.id, Reactions.reply_id==None)",
+        back_populates="comment",
+        cascade="all, delete-orphan",
     )
 
 
@@ -141,7 +147,10 @@ class CommentReply(Base):
     post = relationship("Posts", back_populates="reply")
     comment = relationship("Comments", back_populates="replies")
     reactions = relationship(
-        "Reactions", back_populates="reply", cascade="all, delete-orphan"
+        "Reactions",
+        primaryjoin="Reactions.reply_id==CommentReply.id",
+        back_populates="reply",
+        cascade="all, delete-orphan",
     )
 
 
@@ -159,7 +168,7 @@ class Reactions(Base):
 
     user = relationship("Users", back_populates="reactions")
     post = relationship("Posts", back_populates="reactions")
-    comments = relationship("Comments", back_populates="reactions")
+    comment = relationship("Comments", back_populates="reactions")
     reply = relationship("CommentReply", back_populates="reactions")
 
 

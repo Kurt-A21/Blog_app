@@ -62,6 +62,7 @@ EMAIL_ADDRESS="youremail@gmail.com"
 APP_PASSWORD="" # Your email app password. Remove all whitepaces
 SMTP_SERVER="" # Your smtp server e.g. smtp.gmail.com
 SMTP_PORT= #e.g 465
+BASE_URL="http://127.0.0.1:8000"
 ```
 
 ### 5. Run App

@@ -12,10 +12,15 @@ from typing import Annotated, List
 from services import upload_image, update_image, remove_image
 from .auth import get_current_user, bcrypt_context
 from sqlalchemy.orm import joinedload
+import os
+from utils import load_environment, is_user_authenticated, get_user
 
 router = APIRouter()
 
 user_dependency = Annotated[dict, Depends(get_current_user)]
+
+load_environment()
+BASE_URL = os.getenv("BASE_URL")
 
 
 @router.get("", status_code=status.HTTP_200_OK, response_model=List[GetUserResponse])
@@ -33,8 +38,6 @@ async def get_users(db: db_dependency):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="No users found"
         )
-
-    BASE_URL = "http://127.0.0.1:8000"
 
     return [
         GetUserResponse(
@@ -54,14 +57,9 @@ async def get_users(db: db_dependency):
     "/current_user", status_code=status.HTTP_200_OK, response_model=UserResponse
 )
 async def get_current_user_details(user: user_dependency, db: db_dependency):
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
+    is_user_authenticated(user)
+    query_user = get_user(db=db, user=user)
 
-    query_user = db.query(Users).filter(Users.id == user.get("id")).first()
-
-    BASE_URL = "http://127.0.0.1:8000"
     avatar_url = f"{BASE_URL}/static/{query_user.avatar or 'avatar.png'}"
 
     return UserResponse(
@@ -82,14 +80,10 @@ async def get_current_user_details(user: user_dependency, db: db_dependency):
 async def upload_profile_picture(
     user: user_dependency, db: db_dependency, file: UploadFile = File(...)
 ):
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
+    is_user_authenticated(user)
+    query_user = get_user(db=db, user=user)
 
-    check_user = db.query(Users).filter(Users.id == user.get("id")).first()
-
-    if check_user.avatar:
+    if query_user.avatar:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User already has a profile picture",
@@ -97,7 +91,7 @@ async def upload_profile_picture(
 
     image = await upload_image(file)
 
-    check_user.avatar = image
+    query_user.avatar = image
     db.commit()
 
     return {"detail": "Profile picture uploaded successfully"}
@@ -107,17 +101,13 @@ async def upload_profile_picture(
 async def update_profile_picture(
     user: user_dependency, db: db_dependency, file: UploadFile = File(...)
 ):
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
+    is_user_authenticated(user)
+    query_user = get_user(db=db, user=user)
 
-    check_user = db.query(Users).filter(Users.id == user.get("id")).first()
+    if query_user.avatar:
+        image = await update_image(user=query_user, file=file)
 
-    if check_user.avatar:
-        image = await update_image(user=check_user, file=file)
-
-        check_user.avatar = image
+        query_user.avatar = image
         db.commit()
 
         return {"detail": "Profile picture updated successfully"}
@@ -125,22 +115,18 @@ async def update_profile_picture(
 
 @router.delete("/remove_profile_picture", status_code=status.HTTP_200_OK)
 async def remove_profile_picture(user: user_dependency, db: db_dependency):
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
+    is_user_authenticated(user)
+    query_user = get_user(db=db, user=user)
 
-    check_user = db.query(Users).filter(Users.id == user.get("id")).first()
-
-    if check_user.avatar is None:
+    if query_user.avatar is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User does not have a profile picture",
         )
 
-    image = remove_image(user=check_user)
+    image = remove_image(user=query_user)
 
-    check_user.avatar = image
+    query_user.avatar = image
     db.commit()
 
     return {"detail": "Profile picture removed successfully"}
@@ -150,21 +136,17 @@ async def remove_profile_picture(user: user_dependency, db: db_dependency):
 async def change_password(
     user: user_dependency, db: db_dependency, verify_user: UserVerification
 ):
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
+    is_user_authenticated(user)
+    query_user = get_user(db=db, user=user)
 
-    user_model = db.query(Users).filter(Users.id == user.get("id")).first()
-
-    if not bcrypt_context.verify(verify_user.password, user_model.password):
+    if not bcrypt_context.verify(verify_user.password, query_user.password):
         return HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect password"
         )
 
-    user_model.password = bcrypt_context.hash(verify_user.new_password)
+    query_user.password = bcrypt_context.hash(verify_user.new_password)
 
-    db.add(user_model)
+    db.add(query_user)
     db.commit()
 
     return {"detail": "Password updated successfully"}
@@ -176,13 +158,9 @@ async def update_user(
     db: db_dependency,
     update_user_request: UserUpdate,
 ):
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
-
-    query_user = db.query(Users).filter(Users.id == user.get("id")).first()
-
+    is_user_authenticated(user)
+    query_user = get_user(db=db, user=user)
+    
     query_user.username = update_user_request.username
     query_user.bio = update_user_request.bio
 
@@ -195,12 +173,8 @@ async def update_user(
 async def update_user_email(
     user: user_dependency, db: db_dependency, update_email_request: UserEmailUpdate
 ):
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
-
-    query_user = db.query(Users).filter(Users.id == user.get("id")).first()
+    is_user_authenticated(user)
+    query_user = get_user(db=db, user=user)
 
     query_user.email = update_email_request.email
 
@@ -211,12 +185,8 @@ async def update_user_email(
 
 @router.delete("/deactivate_account", status_code=status.HTTP_200_OK)
 async def deactivate_account(user: user_dependency, db: db_dependency):
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
-
-    query_user = db.query(Users).filter(Users.id == user.get("id")).first()
+    is_user_authenticated(user)
+    query_user = get_user(db=db, user=user)
 
     if query_user is None:
         raise HTTPException(

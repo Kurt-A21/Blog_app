@@ -4,8 +4,14 @@ from datetime import datetime
 import pytz
 from db import db_dependency, Comments, Posts
 from .users import user_dependency
-from schemes import CommentCreate, CommentResponse, CommentUpdateResponse, GetComments
+from schemes import (
+    CommentCreate,
+    CommentResponse,
+    CommentUpdateResponse,
+    CommentUpdate,
+)
 from sqlalchemy.orm import joinedload
+from utils import is_user_authenticated, get_comment_or_404, get_post_or_404
 
 router = APIRouter()
 
@@ -21,22 +27,13 @@ async def create_comment(
     comment_request: CommentCreate,
     post_id: int = Path(gt=0),
 ):
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
-
-    query_post = db.query(Posts).filter(Posts.id == post_id).first()
-
-    if query_post is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
-        )
+    check_auth = is_user_authenticated(user)
+    query_post = get_post_or_404(db=db, post_id=post_id)
 
     comment_model = Comments(
-        owner_id=user.get("id"),
+        owner_id=check_auth.get("id"),
         post_id=post_id,
-        content=comment_request.content,
+        content=comment_request.comment_content,
         created_at=datetime.now(pytz.utc),
     )
 
@@ -61,30 +58,15 @@ async def create_comment(
 async def update_comment(
     user: user_dependency,
     db: db_dependency,
-    update_comment_request: GetComments,
+    update_comment_request: CommentUpdate,
     post_id: int = Path(gt=0),
     comment_id: int = Path(gt=0),
 ):
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
+    check_auth = is_user_authenticated(user)
+    get_post_or_404(db=db, post_id=post_id)
+    query_comment = get_comment_or_404(db=db, comment_id=comment_id)
 
-    query_post = db.query(Posts).filter(Posts.id == post_id).first()
-
-    if query_post is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
-        )
-
-    query_comment = db.query(Comments).filter(Comments.id == comment_id).first()
-
-    if query_comment is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
-        )
-
-    if query_comment.owner_id != user.get("id"):
+    if query_comment.owner_id != check_auth.get("id"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authorized to update this comment",
@@ -99,7 +81,7 @@ async def update_comment(
     return CommentUpdateResponse(
         detail="Comment updated successfully",
         comment_content=query_comment.content,
-        updated_date=datetime.now(pytz.utc),
+        updated_date=query_comment.updated_date,
     )
 
 
@@ -110,11 +92,7 @@ async def delete_comment(
     post_id: int = Path(gt=0),
     comment_id: int = Path(gt=0),
 ):
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
-
+    check_auth = is_user_authenticated(user)
     query_post = (
         db.query(Posts)
         .options(joinedload(Posts.comments))
@@ -132,7 +110,7 @@ async def delete_comment(
             status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
         )
 
-    if query_comment.owner_id != user.get("id"):
+    if query_comment.owner_id != check_auth.get("id"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authorized to update this comment",

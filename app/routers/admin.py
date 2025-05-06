@@ -7,17 +7,18 @@ from schemes import UserResponse
 from typing import Optional, List
 from uuid import UUID
 from sqlalchemy.orm import joinedload
-
+import os
+from utils import load_environment, is_user_admin, get_user, get_post_or_404
 
 router = APIRouter()
+
+load_environment()
+BASE_URL = os.getenv("BASE_URL")
 
 
 @router.get("/", status_code=status.HTTP_200_OK, response_model=List[UserResponse])
 async def get_users_details(user: user_dependency, db: db_dependency):
-    if user is None or user.get("user_role") != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
+    is_user_admin(user)
 
     query_users = db.query(Users).all()
 
@@ -25,8 +26,6 @@ async def get_users_details(user: user_dependency, db: db_dependency):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="No users found"
         )
-
-    BASE_URL = "http://127.0.0.1:8000"
 
     return [
         UserResponse(
@@ -54,11 +53,7 @@ async def get_user_by_id_or_accound_id(
     user_id: Optional[int] = Query(None),
     account_id: Optional[UUID] = Query(None),
 ):
-
-    if user is None or user.get("user_role") != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
+    is_user_admin(user)
 
     if not user_id and not account_id:
         raise HTTPException(
@@ -80,7 +75,6 @@ async def get_user_by_id_or_accound_id(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
 
-    BASE_URL = "http://127.0.0.1:8000"
     avatar_url = f"{BASE_URL}/static/{user.avatar or 'avatar.png'}"
 
     user_response = UserResponse(
@@ -103,12 +97,9 @@ async def get_user_by_id_or_accound_id(
 async def delete_user(
     user: user_dependency, db: db_dependency, user_id: int = Path(gt=0)
 ):
-    if user is None or user.get("user_role") != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
+    is_user_admin(user)
 
-    query_user = db.query(Users).filter(Users.id == user_id).first()
+    query_user = get_user(db=db, user=user)
 
     if query_user is None:
         raise HTTPException(
@@ -124,17 +115,9 @@ async def delete_user(
 async def delete_post(
     user: user_dependency, db: db_dependency, post_id: int = Path(gt=0)
 ):
-    if user is None or user.get("user_role") != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
+    is_user_admin(user)
 
-    query_post = db.query(Posts).filter(Posts.id == post_id).first()
-
-    if query_post is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
-        )
+    query_post = get_post_or_404(db=db, post_id=post_id)
 
     db.delete(query_post)
     db.commit()
@@ -149,10 +132,7 @@ async def delete_comment(
     post_id: int = Path(gt=0),
     comment_id: int = Path(gt=0),
 ):
-    if user is None or user.get("user_role") != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
+    is_user_admin(user)
 
     query_post = (
         db.query(Posts)

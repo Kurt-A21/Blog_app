@@ -1,8 +1,16 @@
 from fastapi import APIRouter, HTTPException, Path
 from starlette import status
-from db import db_dependency, Posts, Reactions, Comments, CommentReply
+from db import db_dependency, Reactions
 from .users import user_dependency
 from schemes import Reaction, ReactionResponse
+from utils import (
+    is_user_authenticated,
+    get_post_or_404,
+    get_comment_or_404,
+    get_reply_or_404,
+    get_reaction_or_404,
+    get_existing_reaction,
+)
 
 router = APIRouter()
 
@@ -18,32 +26,21 @@ async def add_reaction_to_post(
     reaction_request: Reaction,
     post_id: int = Path(gt=0),
 ):
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
+    check_auth = is_user_authenticated(user)
+    query_post = get_post_or_404(db=db, post_id=post_id)
 
-    query_post = db.query(Posts).filter(Posts.id == post_id).first()
-
-    if query_post is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
-        )
-
-    existing_reaction = (
-        db.query(Reactions)
-        .filter(Reactions.post_id == post_id, Reactions.owner_id == user.get("id"))
-        .first()
+    existing = get_existing_reaction(
+        db=db, user_id=check_auth.get("id"), post_id=post_id
     )
 
-    if existing_reaction is not None:
+    if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User already reacted to post",
         )
 
     reaction_model = Reactions(
-        owner_id=user.get("id"),
+        owner_id=check_auth.get("id"),
         post_id=post_id,
         reaction_type=reaction_request.reaction_type,
     )
@@ -70,34 +67,15 @@ async def add_reaction_to_comment(
     post_id: int = Path(gt=0),
     comment_id: int = Path(gt=0),
 ):
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
+    check_auth = is_user_authenticated(user)
+    query_post = get_post_or_404(db=db, post_id=post_id)
+    query_comment = get_comment_or_404(db=db, comment_id=comment_id)
 
-    query_post = db.query(Posts).filter(Posts.id == post_id).first()
-
-    if query_post is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
-        )
-
-    query_comment = db.query(Comments).filter(Comments.id == comment_id).first()
-
-    if query_comment is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
-        )
-
-    existing_reaction = (
-        db.query(Reactions)
-        .filter(
-            Reactions.comment_id == comment_id, Reactions.owner_id == user.get("id")
-        )
-        .first()
+    existing = get_existing_reaction(
+        db=db, user_id=check_auth.get("id"), comment_id=comment_id
     )
 
-    if existing_reaction is not None:
+    if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User already reacted to comment",
@@ -110,7 +88,7 @@ async def add_reaction_to_comment(
         )
 
     reaction_model = Reactions(
-        owner_id=user.get("id"),
+        owner_id=check_auth.get("id"),
         post_id=post_id,
         comment_id=comment_id,
         reaction_type=reaction_request.reaction_type,
@@ -140,52 +118,34 @@ async def add_reaction_to_reply(
     comment_id: int = Path(gt=0),
     reply_id: int = Path(gt=0),
 ):
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
+    check_auth = is_user_authenticated(user)
+    query_post = get_post_or_404(db=db, post_id=post_id)
+    query_comment = get_comment_or_404(db=db, comment_id=comment_id)
+    query_reply = get_reply_or_404(db=db, reply_id=reply_id)
 
-    query_post = db.query(Posts).filter(Posts.id == post_id).first()
-
-    if query_post is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
-        )
-
-    query_post = db.query(Comments).filter(Comments.id == comment_id).first()
-
-    if query_post is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
-        )
-
-    query_reaction = db.query(CommentReply).filter(CommentReply.id == reply_id).first()
-
-    if query_reaction is None:
+    if query_reply is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Reply not found"
         )
 
-    existing_reaction = (
-        db.query(Reactions)
-        .filter(Reactions.reply_id == reply_id, Reactions.owner_id == user.get("id"))
-        .first()
+    existing = get_existing_reaction(
+        db=db, user_id=check_auth.get("id"), reply_id=reply_id
     )
 
-    if existing_reaction is not None:
+    if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User already reacted to reply",
         )
 
-    if query_reaction.comment_id != comment_id:
+    if query_reply.comment_id != comment_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Reply does not belong to the given comment",
         )
 
     reaction_model = Reactions(
-        owner_id=user.get("id"),
+        owner_id=check_auth.get("id"),
         post_id=post_id,
         comment_id=comment_id,
         reply_id=reply_id,
@@ -198,8 +158,8 @@ async def add_reaction_to_reply(
     return ReactionResponse(
         detail="Reaction added to comment",
         post_content=query_post.content,
-        comment_content=query_post.content,
-        reply_content=query_reaction.content,
+        comment_content=query_comment.content,
+        reply_content=query_reply.content,
         reaction_type=reaction_model.reaction_type,
     )
 
@@ -216,28 +176,15 @@ async def update_post_reaction(
     post_id: int = Path(gt=0),
     reaction_id: int = Path(gt=0),
 ):
-    if not user:
+    check_auth = is_user_authenticated(user)
+    query_post = get_post_or_404(db=db, post_id=post_id)
+    query_reaction = get_reaction_or_404(
+        db=db, reaction_id=reaction_id, action="update"
+    )
+
+    if query_reaction.owner_id != check_auth.get("id"):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
-
-    query_post = db.query(Posts).filter(Posts.id == post_id).first()
-
-    if query_post is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
-        )
-
-    query_reaction = db.query(Reactions).filter(Reactions.id == reaction_id).first()
-
-    if not query_reaction:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Reaction to update not found"
-        )
-
-    if query_reaction.owner_id != user.get("id"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to update this reaction",
         )
 
@@ -266,24 +213,9 @@ async def update_comment_reaction(
     comment_id: int = Path(gt=0),
     reaction_id: int = Path(gt=0),
 ):
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
-
-    query_post_model = db.query(Posts).filter(Posts.id == post_id).first()
-
-    if query_post_model is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
-        )
-
-    query_comment = db.query(Comments).filter(Comments.id == comment_id).first()
-
-    if query_comment is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
-        )
+    check_auth = is_user_authenticated(user)
+    query_post = get_post_or_404(db=db, post_id=post_id)
+    query_comment = get_comment_or_404(db=db, comment_id=comment_id)
 
     if query_comment.post_id != post_id:
         raise HTTPException(
@@ -291,16 +223,14 @@ async def update_comment_reaction(
             detail="Comment does not belong to the given post",
         )
 
-    query_reaction = db.query(Reactions).filter(Reactions.id == reaction_id).first()
+    query_reaction = get_reaction_or_404(
+        db=db, reaction_id=reaction_id, action="update"
+    )
 
-    if not query_reaction:
+    if query_reaction.owner_id != check_auth.get("id"):
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Reaction to update not found"
-        )
-
-    if query_reaction.owner_id != user.get("id"):
-        raise HTTPException(
-            status_code=403, detail="Not authorized to update this reaction"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to update this reaction",
         )
 
     query_reaction.reaction_type = update_reaction_request.reaction_type
@@ -310,7 +240,7 @@ async def update_comment_reaction(
 
     return ReactionResponse(
         detail="Reaction type updated successfully",
-        post_content=query_post_model.content,
+        post_content=query_post.content,
         comment_content=query_comment.content,
         reaction_type=query_reaction.reaction_type,
     )
@@ -330,24 +260,9 @@ async def update_reply_reaction(
     reply_id: int = Path(gt=0),
     reaction_id: int = Path(gt=0),
 ):
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
-
-    query_post = db.query(Posts).filter(Posts.id == post_id).first()
-
-    if query_post is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
-        )
-
-    query_comment = db.query(Comments).filter(Comments.id == comment_id).first()
-
-    if query_comment is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
-        )
+    check_auth = is_user_authenticated(user)
+    query_post = get_post_or_404(db=db, post_id=post_id)
+    query_comment = get_comment_or_404(db=db, comment_id=comment_id)
 
     if query_comment.post_id != post_id:
         raise HTTPException(
@@ -355,12 +270,7 @@ async def update_reply_reaction(
             detail="Comment does not belong to the given post",
         )
 
-    query_reply = db.query(CommentReply).filter(CommentReply.id == reply_id).first()
-
-    if query_reply is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Reply not found"
-        )
+    query_reply = get_reply_or_404(db=db, reply_id=reply_id)
 
     if query_reply.comment_id != comment_id:
         raise HTTPException(
@@ -368,14 +278,11 @@ async def update_reply_reaction(
             detail="Reply does not belong to the given commentd",
         )
 
-    query_reaction = db.query(Reactions).filter(Reactions.id == reaction_id).first()
+    query_reaction = get_reaction_or_404(
+        db=db, reaction_id=reaction_id, action="update"
+    )
 
-    if not query_reaction:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Reaction to update not found"
-        )
-
-    if query_reaction.owner_id != user.get("id"):
+    if query_reaction.owner_id != check_auth.get("id"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to update this reaction",
@@ -405,26 +312,11 @@ async def undo_post_reaction(
     post_id: int = Path(gt=0),
     reaction_id: int = Path(gt=0),
 ):
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
+    check_auth = is_user_authenticated(user)
+    get_post_or_404(db=db, post_id=post_id)
+    query_reactiom = get_reaction_or_404(db=db, reaction_id=reaction_id, action="undo")
 
-    query_post = db.query(Posts).filter(Posts.id == post_id).first()
-
-    if query_post is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
-        )
-
-    query_reactiom = db.query(Reactions).filter(Reactions.id == reaction_id).first()
-
-    if query_reactiom is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Reaction to undo not found"
-        )
-
-    if query_reactiom.owner_id != user.get("id"):
+    if query_reactiom.owner_id != check_auth.get("id"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to undo this reaction",
@@ -447,24 +339,9 @@ async def undo_comment_reaction(
     comment_id: int = Path(gt=0),
     reaction_id: int = Path(gt=0),
 ):
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
-
-    query_post = db.query(Posts).filter(Posts.id == post_id).first()
-
-    if query_post is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
-        )
-
-    query_comment = db.query(Comments).filter(Comments.id == comment_id).first()
-
-    if query_comment is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
-        )
+    check_auth = is_user_authenticated(user)
+    get_post_or_404(db=db, post_id=post_id)
+    query_comment = get_comment_or_404(db=db, comment_id=comment_id)
 
     if query_comment.post_id != post_id:
         raise HTTPException(
@@ -472,14 +349,9 @@ async def undo_comment_reaction(
             detail="Comment does not belong to the given post",
         )
 
-    query_reaction = db.query(Reactions).filter(Reactions.id == reaction_id).first()
+    query_reaction = get_reaction_or_404(db=db, reaction_id=reaction_id, action="undo")
 
-    if query_reaction is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Reaction to undo not found"
-        )
-
-    if query_reaction.owner_id != user.get("id"):
+    if query_reaction.owner_id != check_auth.get("id"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to undo this reaction",
@@ -503,24 +375,9 @@ async def undo_reply_reaction(
     reply_id: int = Path(gt=0),
     reaction_id: int = Path(gt=0),
 ):
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
-
-    query_post = db.query(Posts).filter(Posts.id == post_id).first()
-
-    if query_post is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
-        )
-
-    query_comment = db.query(Comments).filter(Comments.id == comment_id).first()
-
-    if query_comment is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
-        )
+    check_auth = is_user_authenticated(user)
+    get_post_or_404(db=db, post_id=post_id)
+    query_comment = get_comment_or_404(db=db, comment_id=comment_id)
 
     if query_comment.post_id != post_id:
         raise HTTPException(
@@ -528,12 +385,7 @@ async def undo_reply_reaction(
             detail="Comment does not belong to the given post",
         )
 
-    query_reply = db.query(CommentReply).filter(CommentReply.id == reply_id).first()
-
-    if query_reply is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Reply not found"
-        )
+    query_reply = get_reply_or_404(db=db, reply_id=reply_id)
 
     if query_reply.comment_id != comment_id:
         raise HTTPException(
@@ -541,14 +393,9 @@ async def undo_reply_reaction(
             detail="Reply does not belong to the given comment",
         )
 
-    query_reaction = db.query(Reactions).filter(Reactions.id == reaction_id).first()
+    query_reaction = get_reaction_or_404(db=db, reaction_id=reaction_id, action="undo")
 
-    if query_reaction is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Reaction to undo not found"
-        )
-
-    if query_reaction.owner_id != user.get("id"):
+    if query_reaction.owner_id != check_auth.get("id"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to undo this reaction",
