@@ -1,13 +1,17 @@
-from fastapi import APIRouter, HTTPException, Path, Query
+from fastapi import APIRouter, HTTPException, Query, Path as PathParam
 from starlette import status
-from db import db_dependency, Users, Posts, Comments, CommentReply
+from app.db import db_dependency, Users, Comments, CommentReply
 from .users import user_dependency
-from schemes import UserResponse
+from app.schemes import UserResponse
 from typing import Optional, List
 from uuid import UUID
-from sqlalchemy.orm import joinedload
 import os
-from utils import load_environment, is_user_admin, get_user, get_post_or_404
+from app.utils import (
+    load_environment,
+    is_user_admin,
+    get_user_by_id_or_404,
+    get_post_or_404,
+)
 
 router = APIRouter()
 
@@ -94,11 +98,11 @@ async def get_user_by_id_or_accound_id(
 
 @router.delete("/user/{user_id}/delete_user", status_code=status.HTTP_200_OK)
 async def delete_user(
-    user: user_dependency, db: db_dependency, user_id: int = Path(gt=0)
+    user: user_dependency, db: db_dependency, user_id: int = PathParam(gt=0)
 ):
     is_user_admin(user)
 
-    query_user = get_user(db=db, user=user)
+    query_user = get_user_by_id_or_404(db=db, user_id=user_id)
 
     if query_user is None:
         raise HTTPException(
@@ -112,7 +116,7 @@ async def delete_user(
 
 @router.delete("/post/{post_id}/delete_post", status_code=status.HTTP_200_OK)
 async def delete_post(
-    user: user_dependency, db: db_dependency, post_id: int = Path(gt=0)
+    user: user_dependency, db: db_dependency, post_id: int = PathParam(gt=0)
 ):
     is_user_admin(user)
 
@@ -128,8 +132,8 @@ async def delete_post(
 async def delete_comment(
     user: user_dependency,
     db: db_dependency,
-    post_id: int = Path(gt=0),
-    comment_id: int = Path(gt=0),
+    post_id: int = PathParam(gt=0),
+    comment_id: int = PathParam(gt=0),
 ):
     is_user_admin(user)
 
@@ -157,9 +161,9 @@ async def delete_comment(
 async def delete_reply(
     user: user_dependency,
     db: db_dependency,
-    post_id: int = Path(gt=0),
-    comment_id: int = Path(gt=0),
-    reply_id: int = Path(gt=0),
+    post_id: int = PathParam(gt=0),
+    comment_id: int = PathParam(gt=0),
+    reply_id: int = PathParam(gt=0),
 ):
     is_user_admin(user)
 

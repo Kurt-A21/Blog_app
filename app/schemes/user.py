@@ -1,7 +1,7 @@
 from pydantic import UUID4, BaseModel, Field, EmailStr, ConfigDict
 from typing import Optional
 from datetime import datetime
-from constants import UserRole
+from app.constants import UserRole
 
 
 class UserCreate(BaseModel):
@@ -12,7 +12,7 @@ class UserCreate(BaseModel):
     avatar: Optional[str] = Field(
         description="Image is not needed to create a account", default=None
     )
-    user_role: UserRole = Field(default=UserRole.USER, nullable=False)
+    user_role: UserRole = Field(default=UserRole.USER, json_schema_extra={"nullable":False})
 
     model_config = ConfigDict(from_attributes=True)
 

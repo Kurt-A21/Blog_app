@@ -3,7 +3,7 @@ from fastapi import HTTPException
 from starlette import status
 from email.message import EmailMessage
 import os
-from utils import load_environment
+from app.utils import load_environment
 
 load_environment()
 

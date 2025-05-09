@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict
-from constants import ReactionType
+from app.constants import ReactionType
 from typing import Optional
 
 

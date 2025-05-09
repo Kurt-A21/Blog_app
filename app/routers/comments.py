@@ -1,17 +1,17 @@
-from fastapi import APIRouter, HTTPException, Path
+from fastapi import APIRouter, HTTPException, Path as PathParam
 from starlette import status
 from datetime import datetime
 import pytz
-from db import db_dependency, Comments, Posts
+from app.db import db_dependency, Comments, Posts
 from .users import user_dependency
-from schemes import (
+from app.schemes import (
     CommentCreate,
     CommentResponse,
     CommentUpdateResponse,
     CommentUpdate,
 )
 from sqlalchemy.orm import joinedload
-from utils import is_user_authenticated, get_comment_or_404, get_post_or_404
+from app.utils import is_user_authenticated, get_comment_or_404, get_post_or_404
 
 router = APIRouter()
 
@@ -25,7 +25,7 @@ async def create_comment(
     user: user_dependency,
     db: db_dependency,
     comment_request: CommentCreate,
-    post_id: int = Path(gt=0),
+    post_id: int = PathParam(gt=0),
 ):
     check_auth = is_user_authenticated(user)
     query_post = get_post_or_404(db=db, post_id=post_id)
@@ -59,8 +59,8 @@ async def update_comment(
     user: user_dependency,
     db: db_dependency,
     update_comment_request: CommentUpdate,
-    post_id: int = Path(gt=0),
-    comment_id: int = Path(gt=0),
+    post_id: int = PathParam(gt=0),
+    comment_id: int = PathParam(gt=0),
 ):
     check_auth = is_user_authenticated(user)
     get_post_or_404(db=db, post_id=post_id)
@@ -89,8 +89,8 @@ async def update_comment(
 async def delete_comment(
     user: user_dependency,
     db: db_dependency,
-    post_id: int = Path(gt=0),
-    comment_id: int = Path(gt=0),
+    post_id: int = PathParam(gt=0),
+    comment_id: int = PathParam(gt=0),
 ):
     check_auth = is_user_authenticated(user)
     query_post = (

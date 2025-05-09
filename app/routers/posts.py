@@ -1,9 +1,9 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Path
+from fastapi import APIRouter, HTTPException, UploadFile, File, Path as PathParam
 from starlette import status
 from pathlib import Path
-from db import db_dependency, Posts, Comments, Users, CommentReply, Reactions
+from app.db import db_dependency, Posts, Comments, Users, CommentReply, Reactions
 from .users import user_dependency
-from schemes import (
+from app.schemes import (
     PostCreate,
     CreatePostResponse,
     PostResponse,
@@ -14,14 +14,14 @@ from schemes import (
     UserTag,
     GetReplies,
 )
-from services import upload_image, update_image, remove_image
+from app.services import upload_image, update_image, remove_image
 import json
 from datetime import datetime
 import pytz
 from typing import List
 from sqlalchemy.orm import joinedload
 import os
-from utils import load_environment, is_user_authenticated, get_post_or_404
+from app.utils import load_environment, is_user_authenticated, get_post_or_404
 
 router = APIRouter()
 
@@ -117,7 +117,7 @@ async def get_all_posts(db: db_dependency):
     status_code=status.HTTP_200_OK,
     response_model=List[PostResponse],
 )
-async def get_user_timeline(db: db_dependency, user_id: int = Path(gt=0)):
+async def get_user_timeline(db: db_dependency, user_id: int = PathParam(gt=0)):
     query_posts = db.query(Posts).filter(Posts.owner_id == user_id).all()
 
     if not query_posts:
@@ -241,7 +241,7 @@ async def update_post(
     user: user_dependency,
     db: db_dependency,
     post_request: PostUpdate,
-    posts_id: int = Path(gt=0),
+    posts_id: int = PathParam(gt=0),
 ):
     check_auth = is_user_authenticated(user)
     query_post = get_post_or_404(db=db, post_id=posts_id)
@@ -265,7 +265,7 @@ async def update_post(
 async def upload_image_to_post(
     user: user_dependency,
     db: db_dependency,
-    post_id: int = Path(gt=0),
+    post_id: int = PathParam(gt=0),
     file: UploadFile = File(...),
 ):
     is_user_authenticated(user)
@@ -289,7 +289,7 @@ async def upload_image_to_post(
 async def update_image_on_post(
     user: user_dependency,
     db: db_dependency,
-    post_id: int = Path(gt=0),
+    post_id: int = PathParam(gt=0),
     file: UploadFile = File(...),
 ):
     is_user_authenticated(user)
@@ -306,7 +306,7 @@ async def update_image_on_post(
 
 @router.delete("/{post_id}/remove_image", status_code=status.HTTP_200_OK)
 async def remove_image_from_post(
-    user: user_dependency, db: db_dependency, post_id: int = Path(gt=0)
+    user: user_dependency, db: db_dependency, post_id: int = PathParam(gt=0)
 ):
     is_user_authenticated(user)
     query_post = get_post_or_404(db=db, post_id=post_id)
@@ -333,7 +333,7 @@ async def add_user_tag(
     user: user_dependency,
     db: db_dependency,
     user_tag: UserTag,
-    post_id: int = Path(gt=0),
+    post_id: int = PathParam(gt=0),
 ):
     check_auth = is_user_authenticated(user)
     query_post = get_post_or_404(db=db, post_id=post_id)
@@ -382,7 +382,7 @@ async def add_user_tag(
 
 @router.delete("/{post_id}/delete_tag", status_code=status.HTTP_200_OK)
 async def remove_user_tags(
-    user: user_dependency, db: db_dependency, post_id: int = Path(gt=0)
+    user: user_dependency, db: db_dependency, post_id: int = PathParam(gt=0)
 ):
     check_auth = is_user_authenticated(user)
     query_post = get_post_or_404(db=db, post_id=post_id)
@@ -408,7 +408,7 @@ async def remove_user_tags(
 
 @router.delete("/{post_id}/delete", status_code=status.HTTP_200_OK)
 async def delete_post(
-    user: user_dependency, db: db_dependency, post_id: int = Path(gt=0)
+    user: user_dependency, db: db_dependency, post_id: int = PathParam(gt=0)
 ):
     check_auth = is_user_authenticated(user)
     query_post = get_post_or_404(db=db, post_id=post_id)

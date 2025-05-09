@@ -1,9 +1,9 @@
-from fastapi import APIRouter, HTTPException, Path
+from fastapi import APIRouter, HTTPException, Path as PathParam
 from starlette import status
-from db import db_dependency, Reactions
+from app.db import db_dependency, Reactions
 from .users import user_dependency
-from schemes import Reaction, ReactionResponse
-from utils import (
+from app.schemes import Reaction, ReactionResponse
+from app.utils import (
     is_user_authenticated,
     get_post_or_404,
     get_comment_or_404,
@@ -24,7 +24,7 @@ async def add_reaction_to_post(
     user: user_dependency,
     db: db_dependency,
     reaction_request: Reaction,
-    post_id: int = Path(gt=0),
+    post_id: int = PathParam(gt=0),
 ):
     check_auth = is_user_authenticated(user)
     query_post = get_post_or_404(db=db, post_id=post_id)
@@ -64,8 +64,8 @@ async def add_reaction_to_comment(
     user: user_dependency,
     db: db_dependency,
     reaction_request: Reaction,
-    post_id: int = Path(gt=0),
-    comment_id: int = Path(gt=0),
+    post_id: int = PathParam(gt=0),
+    comment_id: int = PathParam(gt=0),
 ):
     check_auth = is_user_authenticated(user)
     query_post = get_post_or_404(db=db, post_id=post_id)
@@ -114,9 +114,9 @@ async def add_reaction_to_reply(
     user: user_dependency,
     db: db_dependency,
     reaction_request: Reaction,
-    post_id: int = Path(gt=0),
-    comment_id: int = Path(gt=0),
-    reply_id: int = Path(gt=0),
+    post_id: int = PathParam(gt=0),
+    comment_id: int = PathParam(gt=0),
+    reply_id: int = PathParam(gt=0),
 ):
     check_auth = is_user_authenticated(user)
     query_post = get_post_or_404(db=db, post_id=post_id)
@@ -173,8 +173,8 @@ async def update_post_reaction(
     user: user_dependency,
     db: db_dependency,
     update_reaction_request: Reaction,
-    post_id: int = Path(gt=0),
-    reaction_id: int = Path(gt=0),
+    post_id: int = PathParam(gt=0),
+    reaction_id: int = PathParam(gt=0),
 ):
     check_auth = is_user_authenticated(user)
     query_post = get_post_or_404(db=db, post_id=post_id)
@@ -209,9 +209,9 @@ async def update_comment_reaction(
     user: user_dependency,
     db: db_dependency,
     update_reaction_request: Reaction,
-    post_id: int = Path(gt=0),
-    comment_id: int = Path(gt=0),
-    reaction_id: int = Path(gt=0),
+    post_id: int = PathParam(gt=0),
+    comment_id: int = PathParam(gt=0),
+    reaction_id: int = PathParam(gt=0),
 ):
     check_auth = is_user_authenticated(user)
     query_post = get_post_or_404(db=db, post_id=post_id)
@@ -255,10 +255,10 @@ async def update_reply_reaction(
     user: user_dependency,
     db: db_dependency,
     update_reaction_request: Reaction,
-    post_id: int = Path(gt=0),
-    comment_id: int = Path(gt=0),
-    reply_id: int = Path(gt=0),
-    reaction_id: int = Path(gt=0),
+    post_id: int = PathParam(gt=0),
+    comment_id: int = PathParam(gt=0),
+    reply_id: int = PathParam(gt=0),
+    reaction_id: int = PathParam(gt=0),
 ):
     check_auth = is_user_authenticated(user)
     query_post = get_post_or_404(db=db, post_id=post_id)
@@ -309,8 +309,8 @@ async def update_reply_reaction(
 async def undo_post_reaction(
     user: user_dependency,
     db: db_dependency,
-    post_id: int = Path(gt=0),
-    reaction_id: int = Path(gt=0),
+    post_id: int = PathParam(gt=0),
+    reaction_id: int = PathParam(gt=0),
 ):
     check_auth = is_user_authenticated(user)
     get_post_or_404(db=db, post_id=post_id)
@@ -335,9 +335,9 @@ async def undo_post_reaction(
 async def undo_comment_reaction(
     user: user_dependency,
     db: db_dependency,
-    post_id: int = Path(gt=0),
-    comment_id: int = Path(gt=0),
-    reaction_id: int = Path(gt=0),
+    post_id: int = PathParam(gt=0),
+    comment_id: int = PathParam(gt=0),
+    reaction_id: int = PathParam(gt=0),
 ):
     check_auth = is_user_authenticated(user)
     get_post_or_404(db=db, post_id=post_id)
@@ -370,10 +370,10 @@ async def undo_comment_reaction(
 async def undo_reply_reaction(
     user: user_dependency,
     db: db_dependency,
-    post_id: int = Path(gt=0),
-    comment_id: int = Path(gt=0),
-    reply_id: int = Path(gt=0),
-    reaction_id: int = Path(gt=0),
+    post_id: int = PathParam(gt=0),
+    comment_id: int = PathParam(gt=0),
+    reply_id: int = PathParam(gt=0),
+    reaction_id: int = PathParam(gt=0),
 ):
     check_auth = is_user_authenticated(user)
     get_post_or_404(db=db, post_id=post_id)

@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, Path
+from fastapi import APIRouter, HTTPException, Path as PathParam
 from starlette import status
-from db import db_dependency, Users, Follows
+from app.db import db_dependency, Users, Follows
 from .users import user_dependency
-from schemes import FollowUser, GetFollower
+from app.schemes import FollowUser, GetFollower
 from typing import List
+from utils import is_user_authenticated, get_user_by_id_or_404
 
 router = APIRouter()
 
@@ -13,7 +14,7 @@ router = APIRouter()
     status_code=status.HTTP_200_OK,
     response_model=List[GetFollower],
 )
-async def get_followers(db: db_dependency, user_id: int = Path(gt=0)):
+async def get_followers(db: db_dependency, user_id: int = PathParam(gt=0)):
     get_followers = (
         db.query(Users)
         .join(Follows, Follows.follower_id == Users.id)
@@ -37,7 +38,7 @@ async def get_followers(db: db_dependency, user_id: int = Path(gt=0)):
     status_code=status.HTTP_200_OK,
     response_model=List[GetFollower],
 )
-async def get_following(db: db_dependency, user_id: int = Path(gt=0)):
+async def get_following(db: db_dependency, user_id: int = PathParam(gt=0)):
     get_following = (
         db.query(Users)
         .join(Follows, Follows.user_id == Users.id)
@@ -61,19 +62,10 @@ async def get_following(db: db_dependency, user_id: int = Path(gt=0)):
     "/{user_id}/follow", status_code=status.HTTP_201_CREATED, response_model=FollowUser
 )
 async def follow_user(
-    db: db_dependency, user: user_dependency, user_id: int = Path(gt=0)
+    db: db_dependency, user: user_dependency, user_id: int = PathParam(gt=0)
 ):
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
-
-    query_user = db.query(Users).filter(Users.id == user_id).first()
-
-    if query_user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-        )
+    is_user_authenticated(user)
+    query_user = get_user_by_id_or_404(db, user_id=user_id)
 
     existing_follow = (
         db.query(Follows)
@@ -97,18 +89,11 @@ async def follow_user(
 
 
 @router.delete("/{user_id}/unfollow", status_code=status.HTTP_200_OK)
-async def unfollow(user: user_dependency, db: db_dependency, user_id: int = Path(gt=0)):
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed"
-        )
-
-    query_user = db.query(Users).filter(Users.id == user_id).first()
-
-    if query_user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-        )
+async def unfollow(
+    user: user_dependency, db: db_dependency, user_id: int = PathParam(gt=0)
+):
+    is_user_authenticated(user)
+    query_user = get_user_by_id_or_404(db, user_id=user_id)
 
     existing_follow = (
         db.query(Follows)

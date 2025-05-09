@@ -1,16 +1,16 @@
-from fastapi import APIRouter, HTTPException, Path
+from fastapi import APIRouter, HTTPException, Path as PathParam
 from starlette import status
 from datetime import datetime
 import pytz
-from db import db_dependency, CommentReply
+from app.db import db_dependency, CommentReply
 from .users import user_dependency
-from utils import (
+from app.utils import (
     is_user_authenticated,
     get_reply_or_404,
     get_comment_or_404,
     get_post_or_404,
 )
-from schemes import ReplyCreate, ReplyResponse, ReplyUpdateResponse, ReplyUpdate
+from app.schemes import ReplyCreate, ReplyResponse, ReplyUpdateResponse, ReplyUpdate
 
 router = APIRouter()
 
@@ -22,8 +22,8 @@ async def create_reply(
     user: user_dependency,
     db: db_dependency,
     reply_request: ReplyCreate,
-    post_id: int = Path(gt=0),
-    comment_id: int = Path(gt=0),
+    post_id: int = PathParam(gt=0),
+    comment_id: int = PathParam(gt=0),
 ):
     check_auth = is_user_authenticated(user)
     query_post = get_post_or_404(db=db, post_id=post_id)
@@ -61,9 +61,9 @@ async def update_reply(
     user: user_dependency,
     db: db_dependency,
     update_reply_request: ReplyUpdate,
-    post_id: int = Path(gt=0),
-    comment_id: int = Path(gt=0),
-    reply_id: int = Path(gt=0),
+    post_id: int = PathParam(gt=0),
+    comment_id: int = PathParam(gt=0),
+    reply_id: int = PathParam(gt=0),
 ):
     check_auth = is_user_authenticated(user)
     get_post_or_404(db=db, post_id=post_id)
@@ -95,9 +95,9 @@ async def update_reply(
 async def delete_reply(
     user: user_dependency,
     db: db_dependency,
-    post_id: int = Path(gt=0),
-    comment_id: int = Path(gt=0),
-    reply_id: int = Path(gt=0),
+    post_id: int = PathParam(gt=0),
+    comment_id: int = PathParam(gt=0),
+    reply_id: int = PathParam(gt=0),
 ):
     check_auth = is_user_authenticated(user)
     query_reply = (

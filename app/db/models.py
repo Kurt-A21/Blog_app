@@ -15,7 +15,7 @@ from sqlalchemy.orm import relationship
 from .base_class import Base
 import uuid
 import json
-from constants import UserRole, ReactionType
+from app.constants import UserRole, ReactionType
 
 
 class Users(Base):

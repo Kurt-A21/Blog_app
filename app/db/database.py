@@ -5,7 +5,7 @@ from typing import Annotated
 from sqlalchemy.orm import Session
 from fastapi import Depends
 import os
-from utils import load_environment
+from app.utils import load_environment
 
 load_environment()
 

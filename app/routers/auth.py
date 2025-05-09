@@ -9,16 +9,15 @@ from fastapi.security import (
 )
 from pathlib import Path
 from starlette import status
-from db.database import db_dependency
-from db.models import Users
+from app.db import db_dependency, Users
 from passlib.context import CryptContext
 from typing import Annotated, Union
 from jose import jwt, JWTError
-from schemes import TokenResponse, UserCreate, ResetPassword
+from app.schemes import TokenResponse, UserCreate, ResetPassword
 from enum import Enum
 import os
-from services import send_reset_email, create_reset_token, verify_reset_token
-from utils import load_environment
+from app.services import send_reset_email, create_reset_token, verify_reset_token
+from app.utils import load_environment
 
 
 load_environment()

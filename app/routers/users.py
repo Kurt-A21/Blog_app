@@ -1,7 +1,7 @@
 from fastapi import APIRouter, File, UploadFile, HTTPException, Depends
 from starlette import status
-from db import db_dependency, Users, Follows
-from schemes import (
+from app.db import db_dependency, Users, Follows
+from app.schemes import (
     UserUpdate,
     UserEmailUpdate,
     GetUserResponse,
@@ -9,11 +9,11 @@ from schemes import (
     UserResponse,
 )
 from typing import Annotated, List
-from services import upload_image, update_image, remove_image
+from app.services import upload_image, update_image, remove_image
 from .auth import get_current_user, bcrypt_context
 from sqlalchemy.orm import joinedload
 import os
-from utils import load_environment, is_user_authenticated, get_user
+from app.utils import load_environment, is_user_authenticated, get_user
 
 router = APIRouter()
 

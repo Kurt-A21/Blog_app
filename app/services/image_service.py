@@ -4,7 +4,7 @@ from PIL import Image
 from fastapi import UploadFile, HTTPException
 from starlette import status
 from typing import Optional
-from db import Users, Posts
+from app.db import Users, Posts
 
 
 async def upload_image(file: UploadFile):

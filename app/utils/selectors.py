@@ -1,6 +1,6 @@
 from starlette import status
 from fastapi import HTTPException
-from db.models import *
+from app.db.models import *
 
 
 def is_user_authenticated(user):
@@ -18,6 +18,15 @@ def is_user_admin(user):
 
 def get_user(db, user):
     query_user = db.query(Users).filter(Users.id == user.get("id")).first()
+    return query_user
+
+def get_user_by_id_or_404(db, user_id):
+    query_user = db.query(Users).filter(Users.id == user_id).first()
+    if query_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
+
     return query_user
 
 

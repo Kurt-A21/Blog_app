@@ -37,8 +37,6 @@ class PostResponse(BaseModel):
     reactions: Optional[List[ReactionListResponse]] = []
     comment_count: Optional[int] = None
     comments: Optional[List[GetComments]] = []
-    # reply_count: Optional[int] = None
-    # reply: Optional[List[GetReplies]] = []
 
     model_config = ConfigDict(from_attributes=True)
 
